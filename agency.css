@@ -334,15 +334,137 @@ h2 {
   gap: 16px;
 }
 
+.studio-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  gap: 16px;
+  align-items: stretch;
+  margin-bottom: 14px;
+}
+
+.studio-hero > div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.studio-hero p {
+  max-width: 760px;
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.48;
+}
+
+.studio-readiness {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.studio-readiness div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--paper);
+}
+
+.studio-readiness strong,
+.studio-readiness span {
+  display: block;
+}
+
+.studio-readiness strong {
+  font-size: 1.45rem;
+}
+
+.studio-readiness span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.studio-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  background: #fff;
+}
+
+.studio-tab {
+  min-height: 36px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 11px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 0.86rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.studio-tab.active {
+  color: var(--green);
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
 .template-list,
-.field-list {
+.field-list,
+.blueprint-list,
+.fee-list,
+.setup-list,
+.role-list {
   display: grid;
   gap: 10px;
 }
 
+.blueprint-item,
+.workflow-lane,
+.fee-row,
+.setup-row,
+.role-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 13px;
+  background: #fff;
+}
+
+.blueprint-item {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.blueprint-item strong,
+.blueprint-item span,
+.fee-row strong,
+.fee-row span,
+.setup-row strong,
+.setup-row span,
+.role-row strong,
+.role-row span {
+  display: block;
+}
+
+.blueprint-item p,
+.fee-row p,
+.setup-row p,
+.role-row p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 .field-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 118px 88px;
+  grid-template-columns: minmax(0, 1fr) 110px 120px 88px;
   gap: 10px;
   padding: 12px;
   align-items: center;
@@ -380,6 +502,49 @@ h2 {
   grid-column: 1 / -1;
 }
 
+.workflow-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.workflow-lane h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+
+.workflow-lane ul {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.workflow-lane li {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px;
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.fee-row,
+.setup-row,
+.role-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.fee-amount {
+  font-size: 1.2rem;
+  font-weight: 850;
+}
+
 .inspection-frame {
   width: 100%;
   min-height: 760px;
@@ -395,7 +560,9 @@ h2 {
 @media (max-width: 1100px) {
   .agency-shell,
   .dashboard-grid,
-  .config-layout {
+  .config-layout,
+  .studio-hero,
+  .workflow-board {
     grid-template-columns: 1fr;
   }
 
@@ -420,8 +587,16 @@ h2 {
   .topbar,
   .panel-head,
   .timeline-item,
-  .field-row {
+  .field-row,
+  .blueprint-item,
+  .fee-row,
+  .setup-row,
+  .role-row {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .studio-readiness {
+    grid-template-columns: 1fr;
   }
 }
