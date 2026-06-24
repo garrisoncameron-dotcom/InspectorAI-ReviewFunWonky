@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f4ee" />
+    <title>InspectAid Review Option</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="rail" aria-label="Project context">
+        <div class="brand">
+          <div class="mark" aria-hidden="true">IA</div>
+          <div>
+            <strong>InspectAid</strong>
+            <span>Review Option Lab</span>
+          </div>
+        </div>
+
+        <section class="side-section">
+          <div class="section-title">Extension Status</div>
+          <div class="metric-grid">
+            <div>
+              <strong id="approvedCount">0</strong>
+              <span>approved</span>
+            </div>
+            <div>
+              <strong id="reviewCount">0</strong>
+              <span>needs review</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="side-section">
+          <div class="section-title">Trusted Source Pack</div>
+          <button class="source-card active" type="button">
+            <span class="pill good">active</span>
+            <strong>InspectorAI Production</strong>
+            <small>Mirrors the live InspectAid concepts: citations, evidence capture, mapped fields, and report preview.</small>
+          </button>
+        </section>
+
+        <section class="side-section">
+          <div class="section-title">Launch Target</div>
+          <div class="launch-card">
+            <span class="pill">separate URL</span>
+            <strong>InspectorAI-ReviewFunWonky</strong>
+            <small>Prepared for GitHub Pages as its own project option extension.</small>
+          </div>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Project option extension</p>
+            <h1>Review Fun Wonky</h1>
+          </div>
+          <div class="topbar-actions">
+            <a class="ghost-button" href="https://garrisoncameron-dotcom.github.io/InspectorAI/?mapperlabels=1782190000000" target="_blank" rel="noreferrer">Production app</a>
+            <button id="resetBtn" class="icon-button" type="button" aria-label="Reset review state" title="Reset review state">↺</button>
+          </div>
+        </header>
+
+        <section class="review-layout">
+          <div class="review-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Option review queue</p>
+                <h2>Candidate extension behaviors</h2>
+              </div>
+              <span class="status-strip" id="queueStatus">Draft queue</span>
+            </div>
+
+            <div id="reviewQueue" class="queue" aria-live="polite"></div>
+          </div>
+
+          <div class="inspector-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Mapped preview</p>
+                <h2 id="selectedTitle">Select an item</h2>
+              </div>
+              <span id="selectedSeverity" class="severity general">General</span>
+            </div>
+
+            <div class="preview-form">
+              <label>
+                Inspection question
+                <textarea id="questionInput" rows="4"></textarea>
+              </label>
+              <label>
+                Evidence note
+                <textarea id="evidenceInput" rows="5"></textarea>
+              </label>
+              <label>
+                Citation mapping
+                <input id="citationInput" type="text" />
+              </label>
+            </div>
+
+            <div class="button-row">
+              <button id="approveBtn" class="primary-button" type="button">Approve for extension</button>
+              <button id="needsReviewBtn" class="secondary-button" type="button">Needs review</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="report-band" aria-labelledby="report-title">
+          <div>
+            <p class="eyebrow">Final package</p>
+            <h2 id="report-title">Extension handoff summary</h2>
+          </div>
+          <div id="handoffSummary" class="handoff-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
