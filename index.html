@@ -4,6 +4,175 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f4ee" />
+    <title>InspectAid Agency OS</title>
+    <link rel="stylesheet" href="./agency.css" />
+  </head>
+  <body>
+    <div class="agency-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">IA</div>
+          <div>
+            <strong>InspectAid</strong>
+            <span>Agency OS</span>
+          </div>
+        </div>
+
+        <nav class="nav-group" aria-label="Agency modules">
+          <button class="nav-button active" type="button" data-view="command">Command Center <span class="badge good">live</span></button>
+          <button class="nav-button" type="button" data-view="configuration">Configuration <span class="badge">admin</span></button>
+          <button class="nav-button" type="button" data-view="inspections">Inspections <span class="badge good">InspectAid</span></button>
+        </nav>
+
+        <section class="sidebar-card">
+          <h3>Enterprise frame</h3>
+          <p>Applications, permits, billing, inspections, complaints, templates, and agency-specific configuration in one operating record.</p>
+        </section>
+
+        <section class="sidebar-card">
+          <h3>Configurable by clients</h3>
+          <p>Admins shape fields, forms, templates, required rules, fee schedules, and inspection sheets without code changes.</p>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Full service regulatory platform</p>
+            <h1>Agency OS</h1>
+          </div>
+          <div class="top-actions">
+            <button id="configureAgency" class="secondary-button" type="button">Configure agency</button>
+            <button id="openInspectionModule" class="primary-button" type="button">Open inspections</button>
+          </div>
+        </header>
+
+        <section id="view-command">
+          <div class="metric-grid" aria-label="Agency workload">
+            <div class="metric"><strong>18</strong><span>applications waiting</span></div>
+            <div class="metric"><strong>642</strong><span>active permits</span></div>
+            <div class="metric"><strong>37</strong><span>inspections due</span></div>
+            <div class="metric"><strong>11</strong><span>open complaints</span></div>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Lifecycle modules</p>
+                  <h2>One operating record from application to enforcement</h2>
+                </div>
+                <span class="pill good">enterprise shell</span>
+              </div>
+              <div id="moduleGrid" class="module-grid"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Agency queue</p>
+                  <h2>Current workflow</h2>
+                </div>
+                <span class="pill warn">triage</span>
+              </div>
+              <div id="timelineList" class="queue"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="view-configuration" class="hidden">
+          <div class="config-layout">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Template library</p>
+                  <h2>Start close, then configure</h2>
+                </div>
+                <span class="pill good" id="activeTemplateName">Food Service Agency</span>
+              </div>
+              <div id="templateList" class="template-list"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Admin field builder</p>
+                  <h2>Client-editable data model</h2>
+                </div>
+                <span class="pill">no code</span>
+              </div>
+
+              <form id="addFieldForm" class="field-builder">
+                <label>
+                  Field label
+                  <input name="label" placeholder="e.g. Grease trap service date" />
+                </label>
+                <label>
+                  Type
+                  <select name="type">
+                    <option>Text</option>
+                    <option>Date</option>
+                    <option>Select</option>
+                    <option>Currency</option>
+                    <option>Document</option>
+                    <option>Signature</option>
+                  </select>
+                </label>
+                <label>
+                  Section
+                  <select name="section">
+                    <option>Application</option>
+                    <option>Permit</option>
+                    <option>Billing</option>
+                    <option>Inspection</option>
+                    <option>Complaints</option>
+                  </select>
+                </label>
+                <label>
+                  Required
+                  <select name="required">
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select>
+                </label>
+                <label class="wide">
+                  Admin note
+                  <textarea rows="3" placeholder="Visibility rules, validation, help text, and workflow behavior attach here next."></textarea>
+                </label>
+                <div class="button-row">
+                  <button class="primary-button" type="submit">Add custom field</button>
+                </div>
+              </form>
+
+              <div id="fieldList" class="field-list" aria-live="polite"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="view-inspections" class="hidden">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Inspection intelligence module</p>
+                <h2>Existing InspectAid functionality, wrapped inside Agency OS</h2>
+              </div>
+              <a class="ghost-button" href="./inspections.html" target="_blank" rel="noreferrer">Open full page</a>
+            </div>
+            <iframe class="inspection-frame" title="InspectAid inspection module" src="./inspections.html?embedded=agency-os"></iframe>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="./agency.js"></script>
+  </body>
+</html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f4ee" />
     <title>InspectAid</title>
     <script type="module" crossorigin src="./assets/index-vUMj6uoB.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-DR5mH20v.css">
