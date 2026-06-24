@@ -1,5 +1,6 @@
 const state = {
   activeView: "command",
+  activeStudio: "templates",
   activeTemplate: "food-service",
   fields: [
     { label: "Legal business name", type: "Text", required: true, section: "Application" },
@@ -16,7 +17,7 @@ const modules = [
     id: "applications",
     title: "Applications",
     badge: "18 new",
-    text: "Public portal submissions, staff review, correction requests, approval, and conversion to permits."
+    text: "Public portal submissions flow into staff review, correction requests, approval, and conversion to permits."
   },
   {
     id: "permits",
@@ -65,6 +66,68 @@ const templates = [
   }
 ];
 
+const blueprints = {
+  "food-service": [
+    ["Applications", "Food establishment, mobile unit, temporary event, ownership change, and renewal intake.", "5 forms"],
+    ["Permit types", "Food service, mobile food unit, temporary event, catering, and commissary-linked permits.", "5 types"],
+    ["Inspection profile", "Risk category, routine frequency, opening inspection, complaint investigation, follow-up.", "InspectAid"],
+    ["Billing rules", "Application fee, annual permit fee, late fee, reinspection fee, and temporary-event fee.", "5 fees"],
+    ["Reports", "Inspection report, notice of violation, permit certificate, renewal notice, and invoice.", "5 outputs"]
+  ],
+  lodging: [
+    ["Applications", "Hotel, motel, short-term rental, ownership change, and renewal intake.", "5 forms"],
+    ["Permit types", "Tourist accommodation, extended stay, pool add-on, and food add-on.", "4 types"],
+    ["Inspection profile", "Sanitation, complaint, follow-up, and seasonal inspection schedules.", "4 tracks"],
+    ["Billing rules", "License, room-count tier, late fee, and reinspection fee.", "4 fees"],
+    ["Reports", "Certificate, inspection report, complaint letter, and renewal notice.", "4 outputs"]
+  ],
+  septic: [
+    ["Applications", "Site evaluation, repair, installation, contractor, and subdivision review.", "5 forms"],
+    ["Permit types", "New system, repair, abandonment, operational permit, and installer registration.", "5 types"],
+    ["Inspection profile", "Site visit, installation inspection, final approval, and complaint investigation.", "4 tracks"],
+    ["Billing rules", "Application, plan review, permit, reinspection, and contractor registration fees.", "5 fees"],
+    ["Reports", "Approval letter, permit, deficiency notice, and final inspection record.", "4 outputs"]
+  ]
+};
+
+const workflows = [
+  ["Applications", ["Submitted", "Completeness review", "Corrections requested", "Ready for approval", "Approved or denied"]],
+  ["Permits", ["Draft", "Pending fee", "Active", "Suspended", "Expired", "Renewal due"]],
+  ["Inspections", ["Scheduled", "In progress", "Supervisor review", "Finalized", "Follow-up required"]],
+  ["Complaints", ["Received", "Triaged", "Assigned", "Inspection linked", "Closed"]]
+];
+
+const fees = [
+  ["Food service annual permit", "$425", "Generated when a permit is issued or renewed."],
+  ["Temporary event permit", "$95", "Generated per event date range and location."],
+  ["Reinspection fee", "$150", "Generated when a follow-up is required after unresolved violations."],
+  ["Late renewal penalty", "15%", "Generated after configurable grace period."]
+];
+
+const inspectionSetup = [
+  ["Inspection form templates", "Routine food, opening, complaint, follow-up, and temporary event forms.", "5 forms"],
+  ["Frequency rules", "Risk category drives routine inspection cadence and renewal requirements.", "risk-based"],
+  ["Trusted source packs", "Agency-approved regulations, SOPs, interpretations, and report language.", "cited"],
+  ["Output templates", "Final reports, notices, correction letters, and printable permit certificates.", "mapped"]
+];
+
+const portalSetup = [
+  ["Public applications", "Applicants can submit forms, upload documents, and track status, but never access setup controls.", "enabled"],
+  ["Complaint intake", "Public complaints collect category, facility, contact preference, and attachments only.", "enabled"],
+  ["Renewals", "Operators renew permits, update ownership/contact info, and pay fees.", "draft"],
+  ["Payments", "Invoices expose balance, payment links, receipts, and staff override notes.", "planned"]
+];
+
+const roles = [
+  ["Agency admin", "Can configure templates, fields, workflows, roles, fees, and source packs.", "setup allowed"],
+  ["Implementation support", "Can assist agency admins during onboarding, migrations, and template tuning.", "setup support"],
+  ["Intake staff", "Can review applications, request corrections, and prepare approvals. No setup access.", "applications"],
+  ["Inspector", "Can schedule, perform, and draft inspections and complaint investigations. No setup access.", "field work"],
+  ["Supervisor", "Can approve reports, enforcement actions, source packs, and overrides.", "approval"],
+  ["Billing admin", "Can manage invoices, adjustments, payments, and receipt history. No schema setup by default.", "billing"],
+  ["Public user", "Can submit applications, renewals, documents, payments, and complaints only.", "portal only"]
+];
+
 const views = {
   command: document.querySelector("#view-command"),
   configuration: document.querySelector("#view-configuration"),
@@ -75,14 +138,28 @@ const navButtons = [...document.querySelectorAll(".nav-button")];
 const moduleGrid = document.querySelector("#moduleGrid");
 const timelineList = document.querySelector("#timelineList");
 const templateList = document.querySelector("#templateList");
+const blueprintList = document.querySelector("#blueprintList");
 const fieldList = document.querySelector("#fieldList");
 const addFieldForm = document.querySelector("#addFieldForm");
 const activeTemplateName = document.querySelector("#activeTemplateName");
+const studioTabs = [...document.querySelectorAll(".studio-tab")];
+const studioSections = [...document.querySelectorAll(".studio-section")];
+const workflowBoard = document.querySelector("#workflowBoard");
+const feeList = document.querySelector("#feeList");
+const inspectionSetupList = document.querySelector("#inspectionSetupList");
+const portalSetupList = document.querySelector("#portalSetupList");
+const roleList = document.querySelector("#roleList");
 
 function setView(view) {
   state.activeView = view;
   Object.entries(views).forEach(([key, element]) => element.classList.toggle("hidden", key !== view));
   navButtons.forEach((button) => button.classList.toggle("active", button.dataset.view === view));
+}
+
+function setStudio(section) {
+  state.activeStudio = section;
+  studioTabs.forEach((button) => button.classList.toggle("active", button.dataset.studio === section));
+  studioSections.forEach((element) => element.classList.toggle("hidden", element.dataset.studioSection !== section));
 }
 
 function renderModules() {
@@ -128,8 +205,22 @@ function renderTemplates() {
     button.addEventListener("click", () => {
       state.activeTemplate = button.dataset.template;
       renderTemplates();
+      renderBlueprint();
     });
   });
+}
+
+function renderBlueprint() {
+  blueprintList.innerHTML = (blueprints[state.activeTemplate] || []).map(([area, text, count]) => `
+    <article class="blueprint-item">
+      <span class="pill">${area}</span>
+      <div>
+        <strong>${text}</strong>
+        <p>Template installs editable defaults; admins can rename, hide, require, or replace them.</p>
+      </div>
+      <span class="badge good">${count}</span>
+    </article>
+  `).join("");
 }
 
 function renderFields() {
@@ -144,6 +235,14 @@ function renderFields() {
         <select data-field="${index}" data-prop="type">
           ${["Text", "Address", "Select", "Currency", "Date", "Number", "Document", "Signature"].map((type) => `
             <option ${field.type === type ? "selected" : ""}>${type}</option>
+          `).join("")}
+        </select>
+      </label>
+      <label>
+        Applies to
+        <select data-field="${index}" data-prop="section">
+          ${["Application", "Permit", "Billing", "Inspection", "Complaints"].map((section) => `
+            <option ${field.section === section ? "selected" : ""}>${section}</option>
           `).join("")}
         </select>
       </label>
@@ -180,8 +279,62 @@ addFieldForm.addEventListener("submit", (event) => {
   renderFields();
 });
 
+function renderWorkflow() {
+  workflowBoard.innerHTML = workflows.map(([title, statuses]) => `
+    <section class="workflow-lane">
+      <h3>${title}</h3>
+      <ul>
+        ${statuses.map((status) => `<li>${status}</li>`).join("")}
+      </ul>
+    </section>
+  `).join("");
+}
+
+function renderFees() {
+  feeList.innerHTML = fees.map(([name, amount, rule]) => `
+    <article class="fee-row">
+      <div>
+        <strong>${name}</strong>
+        <p>${rule}</p>
+      </div>
+      <span class="fee-amount">${amount}</span>
+      <span class="pill good">active</span>
+    </article>
+  `).join("");
+}
+
+function renderSetupList(target, rows) {
+  target.innerHTML = rows.map(([name, text, status]) => `
+    <article class="setup-row">
+      <div>
+        <strong>${name}</strong>
+        <p>${text}</p>
+      </div>
+      <span class="pill ${status === "planned" || status === "draft" ? "warn" : "good"}">${status}</span>
+      <button class="ghost-button" type="button">Configure</button>
+    </article>
+  `).join("");
+}
+
+function renderRoles() {
+  roleList.innerHTML = roles.map(([name, text, scope]) => `
+    <article class="role-row">
+      <div>
+        <strong>${name}</strong>
+        <p>${text}</p>
+      </div>
+      <span class="pill">${scope}</span>
+      <button class="ghost-button" type="button">Edit role</button>
+    </article>
+  `).join("");
+}
+
 navButtons.forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.view));
+});
+
+studioTabs.forEach((button) => {
+  button.addEventListener("click", () => setStudio(button.dataset.studio));
 });
 
 document.querySelector("#openInspectionModule").addEventListener("click", () => setView("inspections"));
@@ -190,5 +343,12 @@ document.querySelector("#configureAgency").addEventListener("click", () => setVi
 renderModules();
 renderTimeline();
 renderTemplates();
+renderBlueprint();
 renderFields();
+renderWorkflow();
+renderFees();
+renderSetupList(inspectionSetupList, inspectionSetup);
+renderSetupList(portalSetupList, portalSetup);
+renderRoles();
 setView("command");
+setStudio("templates");
