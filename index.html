@@ -20,7 +20,7 @@
 
         <nav class="nav-group" aria-label="Agency modules">
           <button class="nav-button active" type="button" data-view="command">Command Center <span class="badge good">live</span></button>
-          <button class="nav-button" type="button" data-view="configuration">Configuration <span class="badge">admin</span></button>
+          <button class="nav-button" type="button" data-view="configuration">Setup Studio <span class="badge alert">admin only</span></button>
           <button class="nav-button" type="button" data-view="inspections">Inspections <span class="badge good">InspectAid</span></button>
         </nav>
 
@@ -30,8 +30,8 @@
         </section>
 
         <section class="sidebar-card">
-          <h3>Configurable by clients</h3>
-          <p>Admins shape fields, forms, templates, required rules, fee schedules, and inspection sheets without code changes.</p>
+          <h3>Privileged setup only</h3>
+          <p>Agency admins or implementation support can shape templates and rules. Inspectors and the public never see these controls.</p>
         </section>
       </aside>
 
@@ -42,7 +42,7 @@
             <h1>Agency OS</h1>
           </div>
           <div class="top-actions">
-            <button id="configureAgency" class="secondary-button" type="button">Configure agency</button>
+            <button id="configureAgency" class="secondary-button" type="button">Admin setup</button>
             <button id="openInspectionModule" class="primary-button" type="button">Open inspections</button>
           </div>
         </header>
@@ -81,72 +81,186 @@
         </section>
 
         <section id="view-configuration" class="hidden">
-          <div class="config-layout">
-            <section class="panel">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">Template library</p>
-                  <h2>Start close, then configure</h2>
-                </div>
-                <span class="pill good" id="activeTemplateName">Food Service Agency</span>
-              </div>
-              <div id="templateList" class="template-list"></div>
-            </section>
+          <section class="studio-hero">
+            <div>
+              <p class="eyebrow">Agency Setup Studio</p>
+              <h2>Configure the operating system before the first application arrives</h2>
+              <p>Templates provide a strong starting point. Only agency administrators or approved implementation support can shape records, forms, workflows, fees, inspections, and public intake rules.</p>
+            </div>
+            <div class="studio-readiness" aria-label="Configuration readiness">
+              <div><strong>7</strong><span>setup areas</span></div>
+              <div><strong>42</strong><span>editable rules</span></div>
+              <div><strong>0</strong><span>code changes</span></div>
+            </div>
+          </section>
 
-            <section class="panel">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">Admin field builder</p>
-                  <h2>Client-editable data model</h2>
-                </div>
-                <span class="pill">no code</span>
-              </div>
-
-              <form id="addFieldForm" class="field-builder">
-                <label>
-                  Field label
-                  <input name="label" placeholder="e.g. Grease trap service date" />
-                </label>
-                <label>
-                  Type
-                  <select name="type">
-                    <option>Text</option>
-                    <option>Date</option>
-                    <option>Select</option>
-                    <option>Currency</option>
-                    <option>Document</option>
-                    <option>Signature</option>
-                  </select>
-                </label>
-                <label>
-                  Section
-                  <select name="section">
-                    <option>Application</option>
-                    <option>Permit</option>
-                    <option>Billing</option>
-                    <option>Inspection</option>
-                    <option>Complaints</option>
-                  </select>
-                </label>
-                <label>
-                  Required
-                  <select name="required">
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
-                  </select>
-                </label>
-                <label class="wide">
-                  Admin note
-                  <textarea rows="3" placeholder="Visibility rules, validation, help text, and workflow behavior attach here next."></textarea>
-                </label>
-                <div class="button-row">
-                  <button class="primary-button" type="submit">Add custom field</button>
-                </div>
-              </form>
-
-              <div id="fieldList" class="field-list" aria-live="polite"></div>
-            </section>
+          <div class="studio-tabs" role="tablist" aria-label="Setup Studio sections">
+            <button class="studio-tab active" type="button" data-studio="templates">Templates</button>
+            <button class="studio-tab" type="button" data-studio="fields">Fields</button>
+            <button class="studio-tab" type="button" data-studio="workflow">Workflow</button>
+            <button class="studio-tab" type="button" data-studio="fees">Fees</button>
+            <button class="studio-tab" type="button" data-studio="inspections">Inspections</button>
+            <button class="studio-tab" type="button" data-studio="portal">Public portal</button>
+            <button class="studio-tab" type="button" data-studio="security">Access control</button>
           </div>
+
+          <section class="studio-section" data-studio-section="templates">
+            <div class="config-layout">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Template library</p>
+                    <h2>Start close, then configure</h2>
+                  </div>
+                  <span class="pill good" id="activeTemplateName">Food Service Agency</span>
+                </div>
+                <div id="templateList" class="template-list"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Template blueprint</p>
+                    <h2>What this template installs</h2>
+                  </div>
+                  <span class="pill">draftable</span>
+                </div>
+                <div id="blueprintList" class="blueprint-list"></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="fields">
+            <div class="config-layout">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Admin field builder</p>
+                    <h2>Client-editable data model</h2>
+                  </div>
+                  <span class="pill">no code</span>
+                </div>
+
+                <form id="addFieldForm" class="field-builder">
+                  <label>
+                    Field label
+                    <input name="label" placeholder="e.g. Grease trap service date" />
+                  </label>
+                  <label>
+                    Type
+                    <select name="type">
+                      <option>Text</option>
+                      <option>Date</option>
+                      <option>Select</option>
+                      <option>Currency</option>
+                      <option>Document</option>
+                      <option>Signature</option>
+                    </select>
+                  </label>
+                  <label>
+                    Applies to
+                    <select name="section">
+                      <option>Application</option>
+                      <option>Permit</option>
+                      <option>Billing</option>
+                      <option>Inspection</option>
+                      <option>Complaints</option>
+                    </select>
+                  </label>
+                  <label>
+                    Required
+                    <select name="required">
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </label>
+                  <label class="wide">
+                    Admin note
+                    <textarea rows="3" placeholder="Visibility rules, validation, help text, and workflow behavior attach here next."></textarea>
+                  </label>
+                  <div class="button-row">
+                    <button class="primary-button" type="submit">Add custom field</button>
+                  </div>
+                </form>
+              </section>
+
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Configured fields</p>
+                    <h2>Agency-owned schema</h2>
+                  </div>
+                  <span class="pill good">live editable</span>
+                </div>
+                <div id="fieldList" class="field-list" aria-live="polite"></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="workflow">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Workflow designer</p>
+                  <h2>Statuses, transitions, assignments, and audit rules</h2>
+                </div>
+                <span class="pill warn">permissioned</span>
+              </div>
+              <div id="workflowBoard" class="workflow-board"></div>
+            </section>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="fees">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Fee schedule builder</p>
+                  <h2>Invoices generated from configurable permit rules</h2>
+                </div>
+                <span class="pill good">billing-ready</span>
+              </div>
+              <div id="feeList" class="fee-list"></div>
+            </section>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="inspections">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Inspection setup</p>
+                  <h2>Forms, frequencies, source packs, and report outputs</h2>
+                </div>
+                <span class="pill good">InspectAid-connected</span>
+              </div>
+              <div id="inspectionSetupList" class="setup-list"></div>
+            </section>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="portal">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Public portal setup</p>
+                  <h2>Online intake for applications, renewals, complaints, and payments</h2>
+                </div>
+                <span class="pill">public-facing</span>
+              </div>
+              <div id="portalSetupList" class="setup-list"></div>
+            </section>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="security">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Roles and permissions</p>
+                  <h2>Keep setup power away from public users and rank-and-file staff</h2>
+                </div>
+                <span class="pill warn">least privilege</span>
+              </div>
+              <div id="roleList" class="role-list"></div>
+            </section>
+          </section>
         </section>
 
         <section id="view-inspections" class="hidden">
@@ -165,19 +279,5 @@
     </div>
 
     <script src="./agency.js"></script>
-  </body>
-</html>
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f7f4ee" />
-    <title>InspectAid</title>
-    <script type="module" crossorigin src="./assets/index-vUMj6uoB.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DR5mH20v.css">
-  </head>
-  <body>
-    <div id="root"></div>
   </body>
 </html>
