@@ -314,6 +314,7 @@ const fieldList = document.querySelector("#fieldList");
 const activeTemplateName = document.querySelector("#activeTemplateName");
 const activeFormTitle = document.querySelector("#activeFormTitle");
 const activeFormMeta = document.querySelector("#activeFormMeta");
+const builderPanel = document.querySelector(".builder-panel");
 const formList = document.querySelector("#formList");
 const useTemplateForm = document.querySelector("#useTemplateForm");
 const createBlankForm = document.querySelector("#createBlankForm");
@@ -591,6 +592,8 @@ function renderTemplates() {
       state.activeTemplate = button.dataset.template;
       renderTemplates();
       renderBlueprint();
+      const formId = defaultFormForTemplate(state.activeTemplate);
+      if (formId) selectFormForEditing(formId);
     });
   });
 }
@@ -606,6 +609,29 @@ function renderBlueprint() {
       <span class="badge good">${count}</span>
     </article>
   `).join("");
+}
+
+function focusFormBuilder() {
+  setStudio("fields");
+  window.setTimeout(() => {
+    builderPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 50);
+}
+
+function selectFormForEditing(formId) {
+  if (!state.forms.some((form) => form.id === formId)) return;
+  state.activeFormId = formId;
+  renderFormBuilder();
+  focusFormBuilder();
+}
+
+function defaultFormForTemplate(templateId) {
+  const candidates = {
+    "food-service": ["union-permit-manager", "union-location-manager", "food-application"],
+    lodging: ["complaint-intake"],
+    septic: []
+  }[templateId] || [];
+  return candidates.find((formId) => state.forms.some((form) => form.id === formId)) || null;
 }
 
 function createBlankFormRecord() {
@@ -653,8 +679,7 @@ function renderFormList() {
 
   formList.querySelectorAll("[data-form-id]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.activeFormId = button.dataset.formId;
-      renderFormBuilder();
+      selectFormForEditing(button.dataset.formId);
     });
   });
 }
