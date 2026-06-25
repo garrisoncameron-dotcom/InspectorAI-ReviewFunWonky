@@ -33,6 +33,26 @@ body[data-access-mode="public"] .dashboard-grid {
   display: none;
 }
 
+body[data-access-mode="staff"] .sidebar-card,
+body[data-access-mode="inspector"] .sidebar-card,
+body[data-access-mode="staff"] .metric-grid,
+body[data-access-mode="inspector"] .metric-grid,
+body[data-access-mode="staff"] .dashboard-grid,
+body[data-access-mode="inspector"] .dashboard-grid {
+  display: none;
+}
+
+body[data-access-mode="staff"] .permit-directory,
+body[data-access-mode="inspector"] .permit-directory {
+  margin-top: 0;
+}
+
+body[data-access-mode="staff"] .topbar,
+body[data-access-mode="inspector"] .topbar {
+  border-color: #c6d8df;
+  background: #f6fbfd;
+}
+
 button,
 input,
 select,
