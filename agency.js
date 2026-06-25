@@ -654,11 +654,172 @@ function fieldFromAi([label, type, section, visibility], index) {
   };
 }
 
-function generateDraftFields() {
+function cleanExtractedLabel(value) {
+  return value
+    .replace(/^[\s•\-*]+/, "")
+    .replace(/^\(?[0-9A-Za-z]{1,3}[\).:-]\s+/, "")
+    .replace(/\s*\(?required\)?\s*$/i, "")
+    .replace(/[:：]\s*$/, "")
+    .replace(/[_]{2,}/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function inferFieldType(label) {
+  const text = label.toLowerCase();
+  if (text.includes("signature") || text.includes("signed by")) return "Signature";
+  if (text.includes("upload") || text.includes("attach") || text.includes("document") || text.includes("photo")) return "Document upload";
+  if (text.includes("date") || text.includes("dob") || text.includes("expiration")) return "Date";
+  if (text.includes("number of") || text.includes("amount") || text.includes("fee") || text.includes("count")) return "Number";
+  if (text.includes("address") || text.includes("location")) return "Address";
+  if (text.includes("check all") || text.includes("select all")) return "Multi-select";
+  if (text.includes("yes") && text.includes("no")) return "Checkbox";
+  if (text.includes("describe") || text.includes("explain") || text.includes("narrative") || text.includes("comments") || text.includes("notes")) return "Long text";
+  if (text.includes("type") || text.includes("category") || text.includes("status")) return "Select";
+  return "Text";
+}
+
+function inferSection(label, currentSection) {
+  const text = label.toLowerCase();
+  if (text.includes("complaint")) return "Complaints";
+  if (text.includes("inspection") || text.includes("violation") || text.includes("risk")) return "Inspection";
+  if (text.includes("permit") || text.includes("license")) return "Permit";
+  if (text.includes("invoice") || text.includes("fee") || text.includes("payment")) return "Billing";
+  if (text.includes("facility") || text.includes("address") || text.includes("location")) return "Facility";
+  if (text.includes("internal") || text.includes("staff only")) return "Internal review";
+  return currentSection || "Application";
+}
+
+function isLikelySection(line) {
+  const cleaned = line.trim();
+  return cleaned.length > 3
+    && cleaned.length < 48
+    && !cleaned.includes("?")
+    && !cleaned.includes(":")
+    && /^[A-Z0-9 &/,-]+$/.test(cleaned);
+}
+
+function isLikelyQuestion(line) {
+  const cleaned = line.trim();
+  if (cleaned.length < 3) return false;
+  if (/[?]/.test(cleaned)) return true;
+  if (/[:：]\s*$/.test(cleaned)) return true;
+  if (/_{2,}/.test(cleaned)) return true;
+  if (/^[\s•\-*]*(\(?[0-9A-Za-z]{1,3}[\).:-])\s+/.test(cleaned)) return true;
+  if (/[☐□○◯]/.test(cleaned)) return true;
+  return /\b(name|address|phone|email|date|signature|permit|facility|owner|applicant|contact|type|category|description|upload|attach)\b/i.test(cleaned);
+}
+
+function splitPossibleQuestions(line) {
+  return line
+    .split(/\t+|\s{3,}|[|]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function fieldsFromExtractedText(text) {
+  const normalized = text
+    .replace(/\r/g, "\n")
+    .replace(/[“”]/g, "\"")
+    .replace(/[’]/g, "'")
+    .replace(/[☐□○◯]/g, " checkbox ");
+  const lines = normalized
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !/^page\s+\d+/i.test(line));
+  const fields = [];
+  const reviewItems = [];
+  let currentSection = "Application";
+
+  lines.forEach((line) => {
+    if (isLikelySection(line)) {
+      currentSection = cleanExtractedLabel(line)
+        .toLowerCase()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+      return;
+    }
+
+    const parts = splitPossibleQuestions(line);
+    const candidates = parts.length > 1 ? parts : [line];
+    candidates.forEach((candidate) => {
+      if (!isLikelyQuestion(candidate)) return;
+      const label = cleanExtractedLabel(candidate);
+      if (!label || label.length < 3) return;
+      if (fields.some((field) => field.label.toLowerCase() === label.toLowerCase())) return;
+      const section = inferSection(label, currentSection);
+      const type = inferFieldType(label);
+      fields.push(fieldFromAi([label, type, section, "Public and staff"], fields.length));
+      if (candidate.length > 120 || /checkbox checkbox/i.test(candidate)) {
+        reviewItems.push([label, "Complex line detected. Admin should confirm options, grouping, and conditional logic."]);
+      }
+    });
+  });
+
+  return { fields, lineCount: lines.length, reviewItems };
+}
+
+function extractTextFromPdfBuffer(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  const strings = [];
+  const matches = binary.matchAll(/\(([^()]{3,220})\)\s*Tj|\(([^()]{3,220})\)\s*'/g);
+  for (const match of matches) {
+    strings.push((match[1] || match[2] || "").replace(/\\([()\\])/g, "$1"));
+  }
+  return strings.join("\n");
+}
+
+async function readUploadedFormText() {
+  const file = aiSourceFile.files?.[0];
+  if (!file) return { text: "", source: "instructions", warning: "No file uploaded." };
+  const extension = file.name.split(".").pop().toLowerCase();
+  if (["txt", "csv"].includes(extension)) {
+    return { text: await file.text(), source: file.name, warning: "" };
+  }
+  if (extension === "pdf") {
+    const text = extractTextFromPdfBuffer(await file.arrayBuffer());
+    return {
+      text,
+      source: file.name,
+      warning: text.trim() ? "PDF text layer extracted. Admin should compare against the original form." : "This PDF did not expose readable text. OCR is required before all questions can be captured."
+    };
+  }
+  return {
+    text: "",
+    source: file.name,
+    warning: `${extension.toUpperCase()} extraction is not available in this browser-only prototype yet. Paste the form text into Admin instructions or use a text/PDF file with a readable text layer.`
+  };
+}
+
+async function generateDraftFields() {
   if (state.activeAiMode === "agency") {
     const template = agencyTemplateLibrary[agencyTemplateSelect.value];
-    return template.fields.map(fieldFromAi);
+    return {
+      fields: template.fields.map(fieldFromAi),
+      source: template.title,
+      findings: []
+    };
   }
+
+  const uploaded = state.activeAiMode === "scan" ? await readUploadedFormText() : { text: "", source: "instructions", warning: "" };
+  const sourceText = `${uploaded.text}\n${aiInstructions.value || ""}`.trim();
+  const extracted = fieldsFromExtractedText(sourceText);
+
+  if (extracted.fields.length) {
+    return {
+      fields: extracted.fields,
+      source: uploaded.source,
+      findings: [
+        ["Full extraction pass", `Scanned ${extracted.lineCount} text lines and proposed ${extracted.fields.length} fields. No artificial field limit was applied.`],
+        ...(uploaded.warning ? [["Extraction warning", uploaded.warning]] : []),
+        ...extracted.reviewItems
+      ]
+    };
+  }
+
   const base = [
     ["Applicant legal name", "Text", "Application", "Public and staff"],
     ["Facility address", "Address", "Application", "Public and staff"],
@@ -677,7 +838,14 @@ function generateDraftFields() {
   if (text.includes("floor plan")) {
     base.splice(4, 0, ["Floor plan upload", "Document upload", "Application", "Public and staff"]);
   }
-  return base.map(fieldFromAi);
+  return {
+    fields: base.map(fieldFromAi),
+    source: uploaded.source,
+    findings: [
+      ["Extraction review required", "No readable form questions were detected. The draft uses a starter scaffold and should not be treated as a complete extraction."],
+      ...(uploaded.warning ? [["Extraction warning", uploaded.warning]] : [])
+    ]
+  };
 }
 
 function renderAiDraft() {
@@ -718,7 +886,7 @@ function renderAiDraft() {
   `;
 }
 
-function createAiDraft() {
+async function createAiDraft() {
   const partner = agencyTemplateLibrary[agencyTemplateSelect.value];
   if (state.activeAiMode !== "agency") {
     agencyTemplateSelect.value = "union-food";
@@ -728,20 +896,26 @@ function createAiDraft() {
     instructions: "AI draft from written instructions",
     agency: `AI draft from ${partner.agency}`
   }[state.activeAiMode];
-  const fields = generateDraftFields();
+  generateAiDraft.disabled = true;
+  generateAiDraft.textContent = "Reading form...";
+  const draft = await generateDraftFields();
+  const fields = draft.fields;
+  generateAiDraft.disabled = false;
+  generateAiDraft.textContent = "Generate draft";
   state.aiDraft = {
     title: state.activeAiMode === "agency" ? `${partner.title} localized draft` : modeTitle,
     source: state.activeAiMode === "agency"
       ? `Borrowed from ${partner.agency}. Assumption: shared rules/requirements; admin must localize labels, fees, and approval rules before use.`
-      : `Generated from ${aiSourceFile.files?.[0]?.name || "instructions"} plus admin prompt.`,
+      : `Generated from ${draft.source || aiSourceFile.files?.[0]?.name || "instructions"} plus admin prompt.`,
     fields,
     sections: new Set(fields.map((field) => field.section)).size,
     staffOnly: fields.filter((field) => field.visibility === "Staff only").length,
     findings: [
-      ["Review required fields", "AI marked core identity, permit, and document fields as required. Admin should confirm local ordinance requirements."],
-      ["Visibility assumptions", "Public-facing fields remain applicant-visible; internal review and risk fields are staff-only."],
+      ["Review required fields", "AI marked likely core fields as required or conditional. Admin should confirm local ordinance requirements."],
+      ["No silent drop rule", "If extraction is uncertain, the item is flagged for review instead of being treated as complete."],
       ["Record mappings", "Fields are mapped to application, facility, permit, inspection, or complaint records for downstream workflow."],
-      ["Neighbor agency localization", state.activeAiMode === "agency" ? "Borrowed forms should be compared against local fees, labels, and approval authority before publishing." : "No partner-agency template was used for this draft."]
+      ["Neighbor agency localization", state.activeAiMode === "agency" ? "Borrowed forms should be compared against local fees, labels, and approval authority before publishing." : "No partner-agency template was used for this draft."],
+      ...(draft.findings || [])
     ]
   };
   renderAiDraft();
