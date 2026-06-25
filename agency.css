@@ -601,6 +601,15 @@ h2 {
   margin-top: 16px;
 }
 
+.panel-head.compact {
+  margin-bottom: 10px;
+}
+
+.panel-head.compact h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
 .list-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 220px;
@@ -623,6 +632,50 @@ h2 {
   padding: 10px;
   background: var(--paper);
   color: var(--ink);
+}
+
+.intake-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  background: #fbfaf7;
+}
+
+.intake-list {
+  display: grid;
+  gap: 8px;
+}
+
+.intake-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 120px 140px;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+
+.intake-row p,
+.intake-row small {
+  display: block;
+  margin: 2px 0 0;
+  color: var(--muted);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.intake-row > span:last-child {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.compact-empty {
+  padding: 12px;
 }
 
 .record-workspace {
