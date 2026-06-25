@@ -237,14 +237,19 @@
                     <strong>Borrow from another agency</strong>
                     <p>Start from a live client template, then localize and approve it.</p>
                   </button>
+                  <button class="ai-mode" type="button" data-ai-mode="hs-template">
+                    <span class="pill">HS template</span>
+                    <strong>AI from HS template</strong>
+                    <p>Import a field export flatfile with variables, options, groups, and notes.</p>
+                  </button>
                 </div>
 
                 <div class="ai-input-grid">
                   <label class="upload-target" data-ai-input="scan">
                     Source file
-                    <input id="aiSourceFile" type="file" accept=".pdf,.doc,.docx,.xlsx,.csv,.png,.jpg,.jpeg,.txt" />
+                    <input id="aiSourceFile" type="file" accept=".pdf,.doc,.docx,.xlsx,.csv,.tsv,.png,.jpg,.jpeg,.txt" />
                     <span id="aiFileName">Drop a form, scan, or worksheet</span>
-                    <small>Text files, CSV, and PDFs with readable text extract in-browser. Scanned images are flagged for OCR review.</small>
+                    <small>Text, CSV/TSV, and PDFs with readable text extract in-browser. Scanned images are flagged for OCR review.</small>
                   </label>
 
                   <label data-ai-input="agency">
