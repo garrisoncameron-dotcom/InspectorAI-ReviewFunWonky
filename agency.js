@@ -398,6 +398,8 @@ const dataStatusText = document.querySelector("#dataStatusText");
 const syncQueueStatus = document.querySelector("#syncQueueStatus");
 const activeAgencyName = document.querySelector("#activeAgencyName");
 const activeAgencyUrl = document.querySelector("#activeAgencyUrl");
+const appModeEyebrow = document.querySelector("#appModeEyebrow");
+const appModeTitle = document.querySelector("#appModeTitle");
 const accessModeSelector = document.querySelector("#accessModeSelector");
 const agencySelector = document.querySelector("#agencySelector");
 const addAgencyButton = document.querySelector("#addAgencyButton");
@@ -612,14 +614,41 @@ function applyAccessMode(mode = state.accessMode) {
   document.body.dataset.accessMode = mode;
   accessModeSelector.value = mode;
   const publicOnly = mode === "public";
+  const staffOnly = mode === "staff" || mode === "inspector";
   const setupAllowed = canConfigure();
+  appModeEyebrow.textContent = setupAllowed
+    ? "Full service regulatory platform"
+    : publicOnly
+      ? "Citizen-facing public intake"
+      : mode === "inspector"
+        ? "Inspector field workspace"
+        : "Health department staff workspace";
+  appModeTitle.textContent = setupAllowed
+    ? "Agency OS"
+    : publicOnly
+      ? "Public Portal"
+      : mode === "inspector"
+        ? "Inspection Workbench"
+        : "Staff Operations";
+  const commandNav = document.querySelector('[data-view="command"]');
+  if (commandNav) {
+    commandNav.innerHTML = setupAllowed
+      ? 'Command Center <span class="badge good">live</span>'
+      : mode === "inspector"
+        ? 'Inspection Queue <span class="badge good">field</span>'
+        : 'Permit Records <span class="badge good">staff</span>';
+  }
   document.querySelectorAll('[data-view="configuration"], #configureAgency, .add-agency-control').forEach((element) => {
     element.classList.toggle("hidden", !setupAllowed);
   });
   document.querySelectorAll('[data-view="inspections"], #openInspectionModule').forEach((element) => {
     element.classList.toggle("hidden", publicOnly);
   });
-  agencySelector.closest("label")?.classList.toggle("hidden", publicOnly);
+  document.querySelectorAll('[data-view="public"]').forEach((element) => {
+    element.classList.toggle("hidden", !setupAllowed && !publicOnly);
+  });
+  accessModeSelector.closest("label")?.classList.toggle("hidden", !setupAllowed);
+  agencySelector.closest("label")?.classList.toggle("hidden", publicOnly || staffOnly);
   if (publicOnly) {
     setView("public");
   } else if (state.activeView === "public" && mode !== "public") {
