@@ -397,6 +397,8 @@ const views = {
 };
 
 const navButtons = [...document.querySelectorAll(".nav-button")];
+const mobileMenuToggle = document.querySelector("#mobileMenuToggle");
+const agencyNav = document.querySelector("#agencyNav");
 const moduleGrid = document.querySelector("#moduleGrid");
 const timelineList = document.querySelector("#timelineList");
 const staffWorkloadGrid = document.querySelector("#staffWorkloadGrid");
@@ -406,6 +408,9 @@ const permitFacilityTypeFilter = document.querySelector("#permitFacilityTypeFilt
 const permitStatusFilter = document.querySelector("#permitStatusFilter");
 const permitListScreen = document.querySelector("#permitListScreen");
 const permitDetailPanel = document.querySelector("#permitDetailPanel");
+const inspectionFrame = document.querySelector("#inspectionFrame");
+const inspectionFullPageLink = document.querySelector("#inspectionFullPageLink");
+const inspectionContextNote = document.querySelector("#inspectionContextNote");
 const intakeQueues = {
   application: {
     list: document.querySelector("#applicationSubmissionList"),
@@ -661,6 +666,17 @@ function setView(view) {
   state.activeView = view;
   Object.entries(views).forEach(([key, element]) => element.classList.toggle("hidden", key !== view));
   navButtons.forEach((button) => button.classList.toggle("active", button.dataset.view === view));
+  closeMobileMenu();
+}
+
+function closeMobileMenu() {
+  agencyNav?.classList.remove("open");
+  mobileMenuToggle?.setAttribute("aria-expanded", "false");
+}
+
+function toggleMobileMenu() {
+  const isOpen = agencyNav?.classList.toggle("open");
+  mobileMenuToggle?.setAttribute("aria-expanded", isOpen ? "true" : "false");
 }
 
 function canConfigure() {
@@ -1036,16 +1052,20 @@ function renderPermitListScreen() {
   if (!permits.some((permit) => permit.id === state.activePermitId)) {
     state.activePermitId = permits[0]?.id || null;
   }
-  permitListScreen.innerHTML = permits.length ? permits.map((permit) => `
-    <button class="record-row ${permit.id === state.activePermitId ? "active" : ""}" type="button" data-permit-id="${permit.id}">
-      <span class="pill ${permit.status === "Active" ? "good" : permit.status === "Suspended" ? "alert" : "warn"}">${permit.status}</span>
-      <strong>${permit.permitNumber}</strong>
-      <span>${permit.facilityName}</span>
-      <span>${permit.address}</span>
-      <span>${permit.program} · ${permit.permitType}</span>
-      <span>Risk ${permit.risk} · assigned to ${permit.assignedTo}</span>
-    </button>
-  `).join("") : `
+  permitListScreen.innerHTML = permits.length ? permits.map((permit) => {
+    const isActive = permit.id === state.activePermitId;
+    return `
+      <button class="record-row ${isActive ? "active" : ""}" type="button" data-permit-id="${permit.id}" aria-expanded="${isActive ? "true" : "false"}">
+        <span class="pill ${permit.status === "Active" ? "good" : permit.status === "Suspended" ? "alert" : "warn"}">${permit.status}</span>
+        <strong>${permit.permitNumber}</strong>
+        <span>${permit.facilityName}</span>
+        <span>${permit.address}</span>
+        <span>${permit.program} · ${permit.permitType}</span>
+        <span>Risk ${permit.risk} · assigned to ${permit.assignedTo}</span>
+      </button>
+      ${isActive ? permitDetailHtml(permit, "mobile-record-detail") : ""}
+    `;
+  }).join("") : `
     <article class="empty-state">
       <strong>No permits match that search.</strong>
       <p>Clear the search or status filter to return to the full list.</p>
@@ -1058,34 +1078,39 @@ function renderPermitListScreen() {
     });
   });
   const permit = permitRecords.find((item) => item.id === state.activePermitId);
-  permitDetailPanel.innerHTML = permit ? `
-    <p class="eyebrow">Permit record</p>
-    <h3>${permit.facilityName}</h3>
-    <div class="detail-grid">
-      <span class="pill ${permit.status === "Active" ? "good" : permit.status === "Suspended" ? "alert" : "warn"}">${permit.status}</span>
-      <strong>${permit.permitNumber}</strong>
-      <p>${permit.address}</p>
-      <p>${permit.program} · ${permit.permitType}</p>
-      <p>Risk ${permit.risk} · inspection frequency ${permit.inspectionFrequency}</p>
-      <p>${permit.phone} · ${permit.email || "no email on file"}</p>
-      <p>Assigned to ${permit.assignedTo}</p>
-      <p>Last inspection: ${permit.lastInspection}</p>
-      <p>Next inspection: ${permit.nextInspection}</p>
-    </div>
-    <div class="record-actions">
-      <button class="ghost-button" type="button" data-permit-action="history">Open facility history</button>
-      <button class="primary-button" type="button" data-permit-action="inspection">Perform inspection</button>
-      <button class="secondary-button" type="button" data-permit-action="complaint">New complaint</button>
-      <button class="ghost-button" type="button" data-permit-action="email">Email facility contact</button>
-    </div>
-  ` : `
+  permitDetailPanel.innerHTML = permit ? permitDetailHtml(permit) : `
     <p class="eyebrow">Permit record</p>
     <h3>Select a permit</h3>
     <p>Open a permit to see facility details, linked address data, and related actions.</p>
   `;
-  permitDetailPanel.querySelectorAll("[data-permit-action]").forEach((button) => {
+  document.querySelectorAll("[data-permit-action]").forEach((button) => {
     button.addEventListener("click", () => handlePermitAction(button.dataset.permitAction, permit));
   });
+}
+
+function permitDetailHtml(permit, extraClass = "") {
+  const content = `
+      <p class="eyebrow">Permit record</p>
+      <h3>${permit.facilityName}</h3>
+      <div class="detail-grid">
+        <span class="pill ${permit.status === "Active" ? "good" : permit.status === "Suspended" ? "alert" : "warn"}">${permit.status}</span>
+        <strong>${permit.permitNumber}</strong>
+        <p>${permit.address}</p>
+        <p>${permit.program} · ${permit.permitType}</p>
+        <p>Risk ${permit.risk} · inspection frequency ${permit.inspectionFrequency}</p>
+        <p>${permit.phone} · ${permit.email || "no email on file"}</p>
+        <p>Assigned to ${permit.assignedTo}</p>
+        <p>Last inspection: ${permit.lastInspection}</p>
+        <p>Next inspection: ${permit.nextInspection}</p>
+      </div>
+      <div class="record-actions">
+        <button class="ghost-button" type="button" data-permit-action="history">Open facility history</button>
+        <button class="primary-button" type="button" data-permit-action="inspection">Perform inspection</button>
+        <button class="secondary-button" type="button" data-permit-action="complaint">New complaint</button>
+        <button class="ghost-button" type="button" data-permit-action="email">Email facility contact</button>
+      </div>
+  `;
+  return extraClass ? `<aside class="record-detail ${extraClass}">${content}</aside>` : content;
 }
 
 function openActionModal({ eyebrow, title, body, footer = "" }) {
@@ -1117,32 +1142,189 @@ function openActionModal({ eyebrow, title, body, footer = "" }) {
   return modal;
 }
 
+function hsFieldId(field) {
+  return (field.key || field.id || "").replace(/^hs\./, "").replace(/-.+$/, "");
+}
+
+function hsGroupName(field) {
+  const group = field.helpText?.match(/HS group: ([^|]+)/)?.[1]?.trim() || "";
+  return group.replace(/~expanded/g, "").trim();
+}
+
+function permitFieldSection(field) {
+  const group = hsGroupName(field);
+  const key = hsFieldId(field);
+  const label = field.label.toLowerCase();
+  if (group) return group;
+  if (["permitNum", "previousStateID", "StateAgencyNum", "countyCode", "permitCountyTitle", "permitName", "permitStatus", "cfg_programID", "cfg_permit_typeID"].includes(key)) return "Permit identity";
+  if (["FacilityPhone", "SecondaryPhone", "FacilityEmail", "recordAssignedToUserID", "temporary_eventID"].includes(key)) return "Facility contacts and assignment";
+  if (label.includes("date") || ["OpeningDate", "expirationDate", "closingDatePool", "dateAdd", "dateLastModified", "modifiedBy"].includes(key)) return "Dates and audit";
+  if (["WaterSupplyPermit", "WastewaterSystemPermit", "YearBuiltPermit", "LeadAssessmentCompleted", "Annualmonitoringforleadrequired", "issuanceReason", "permitTerritory", "statusNotes"].includes(key)) return "Facility infrastructure and status";
+  if (["risk", "FDAEstablishmentType", "InspectionFrequencyNEW", "seasonal", "monthsClosed", "hoursOperation", "numberSeats", "SmokingAllowed", "NumberofStaffMaxPerShift", "TotalSquareFootageofFacility", "Season", "Sport"].includes(key)) return "Operations and inspection profile";
+  if (["ConditionsRemarks", "Attachments", "Transitional", "TransitionalTimeline", "noncompliantConditions", "SkipPermitNumber"].includes(key)) return "Permit conditions";
+  return "Additional permit fields";
+}
+
+function permitTemplateFields() {
+  const configured = state.forms.find((form) => form.id === "union-permit-manager")?.fields;
+  if (configured?.length) return configured;
+  const seed = window.AgencySeedFlatfiles?.[state.activeAgencyId]?.forms?.find((form) => form.id === "union-permit-manager");
+  return seed?.flatfile ? fieldsFromHsTemplateFlatfile(seed.flatfile).fields.map((field) => seedFieldAdjustments(field, {
+    id: "union-permit-manager",
+    title: "Union Permit Manager",
+    recordMap: "Permit",
+    defaultSection: "Permit"
+  })) : [];
+}
+
+function permitFieldValue(permit, field) {
+  const key = hsFieldId(field);
+  const nowYear = new Date().getFullYear();
+  const sampleValues = {
+    contactsReminder: "Contacts are managed from the linked facility and address records.",
+    permitNum: permit.permitNumber,
+    previousStateID: permit.previousPermitNumber || "",
+    StateAgencyNum: permit.stateAgencyNumber || permit.permitNumber.replace(/[^0-9]/g, ""),
+    countyCode: "090",
+    permitCountyTitle: "Union County",
+    permitName: permit.facilityName,
+    permitStatus: permit.status === "Active" ? "A Open" : permit.status === "Suspended" ? "E Suspended Permit" : permit.status,
+    cfg_programID: permit.program,
+    cfg_permit_typeID: permit.permitType,
+    FacilityPhone: permit.phone,
+    SecondaryPhone: permit.contacts?.[1]?.phone || "",
+    FacilityEmail: permit.email,
+    recordAssignedToUserID: permit.assignedTo,
+    temporary_eventID: permit.permitType === "Temporary Event" ? permit.facilityName : "",
+    typeOfPool: permit.program.includes("Pool") ? permit.permitType : "",
+    LimitedPlanReviewRequested: permit.program === "Food Service" ? "NO" : "",
+    WaterSupplyPermit: permit.waterSupply || "Municipal/Community",
+    WastewaterSystemPermit: permit.wastewaterSystem || "Municipal/Community",
+    applicationDate: permit.applicationDate || `${nowYear}-04-10`,
+    issueDate: permit.issueDate || `${nowYear}-05-01`,
+    OpeningDate: permit.openingDate || `${nowYear}-05-15`,
+    expirationDate: permit.expirationDate || `${nowYear}-12-31`,
+    closingDatePool: permit.program.includes("Pool") ? `${nowYear}-09-15` : "",
+    YearBuiltPermit: permit.yearBuilt || "2018",
+    LeadAssessmentCompleted: "",
+    Annualmonitoringforleadrequired: "",
+    issuanceReason: permit.status === "Pending" ? "New" : "Renewal",
+    permitTerritory: "3",
+    statusNotes: permit.status === "Suspended" ? "Follow-up required before reinstatement." : "",
+    risk: permit.risk,
+    FDAEstablishmentType: permit.permitType === "Restaurant" ? "Full Service Restaurant" : permit.permitType === "Limited Food Service" ? "Fast Food Restaurant" : "",
+    InspectionFrequencyNEW: permit.inspectionFrequency,
+    seasonal: permit.program.includes("Pool") || permit.permitType.includes("Seasonal") ? "YES" : "NO",
+    monthsClosed: permit.permitType.includes("Seasonal") ? "September-May" : "",
+    hoursOperation: permit.hoursOperation || "Mon-Fri 8:00 AM-6:00 PM",
+    numberSeats: permit.permitType.includes("Pool") ? "120" : "48",
+    SmokingAllowed: "NO",
+    NumberofStaffMaxPerShift: permit.program === "Food Service" ? "12" : "",
+    TotalSquareFootageofFacility: permit.program === "Food Service" ? "2,850" : "",
+    Season: permit.permitType === "Limited Food Service" ? "Fall" : "",
+    Sport: permit.permitType === "Limited Food Service" ? "Football" : "",
+    ConditionsRemarks: permit.status === "Suspended" ? "Permit suspended pending corrective action." : "Standard permit conditions apply.",
+    Attachments: "YES",
+    Transitional: "NO",
+    TransitionalTimeline: "",
+    noncompliantConditions: "",
+    ReceivedBy: "Intake staff",
+    ReceivedbySignature: "On file",
+    ReceivedByTitle: "Environmental Health Specialist",
+    ReceivedByDate: permit.applicationDate || `${nowYear}-04-10`,
+    permitteduserID: permit.assignedTo,
+    userID: permit.assignedTo,
+    REHSApprovalDate: permit.issueDate || `${nowYear}-05-01`,
+    REHSSignature: "On file",
+    commissaryName: permit.permitType === "Mobile Food Unit" ? "Old Charlotte Commissary" : "",
+    commissaryNumber: permit.permitType === "Mobile Food Unit" ? "COM-42" : "",
+    Perimeter: permit.program.includes("Pool") ? "210 ft" : "",
+    constructedRemodeledPools: permit.program.includes("Pool") ? "After 5/1/93" : "",
+    SurfaceArea: permit.program.includes("Pool") ? "3,200 sq ft" : "",
+    VolumePool: permit.program.includes("Pool") ? "95,000 gal" : "",
+    TotalSkimmers: permit.program.includes("Pool") ? "12" : "",
+    SkimmersDisabled: permit.program.includes("Pool") ? "No" : "",
+    HydraulicSystems: permit.program.includes("Pool") ? "Main pool circulation system" : "",
+    SkipPermitNumber: "No",
+    dateAdd: `${nowYear}-04-10`,
+    dateLastModified: new Date().toISOString().slice(0, 10),
+    modifiedBy: permit.assignedTo
+  };
+  return sampleValues[key] ?? permit.values?.[key] ?? "";
+}
+
+function fieldBadges(field) {
+  const hasConditionalVisibility = /Show on:|Hide on:/i.test(field.conditionalRule || "");
+  return [
+    field.required === "true" ? `<span class="pill warn">required</span>` : "",
+    field.type ? `<span class="pill">${escapeHtml(field.type)}</span>` : "",
+    hasConditionalVisibility ? `<span class="pill">conditional</span>` : "",
+    field.helpText?.includes("Use on list screen") ? `<span class="pill good">list screen</span>` : ""
+  ].filter(Boolean).join("");
+}
+
 function openFacilityHistory(permit) {
-  const rows = [
-    ["Permit number", permit.permitNumber],
-    ["Facility name", permit.facilityName],
-    ["Facility type", permit.permitType],
-    ["Program", permit.program],
-    ["Status", permit.status],
-    ["Address", permit.address],
-    ["Facility phone", permit.phone],
-    ["Facility email", permit.email],
-    ["Assigned to", permit.assignedTo],
-    ["Risk category", permit.risk],
-    ["Inspection frequency", permit.inspectionFrequency],
-    ["Last inspection", permit.lastInspection],
-    ["Next inspection", permit.nextInspection]
+  const fields = permitTemplateFields();
+  const grouped = fields.reduce((groups, field) => {
+    const section = permitFieldSection(field);
+    if (!groups[section]) groups[section] = [];
+    groups[section].push(field);
+    return groups;
+  }, {});
+  const sectionOrder = [
+    "Permit identity",
+    "Facility contacts and assignment",
+    "Facility infrastructure and status",
+    "Dates and audit",
+    "Operations and inspection profile",
+    "Permit conditions",
+    "Approval and Signatures",
+    "Mobile Food Units",
+    "Pool Information",
+    "Additional permit fields"
   ];
+  const orderedGroups = Object.entries(grouped).sort(([left], [right]) => {
+    const leftIndex = sectionOrder.indexOf(left);
+    const rightIndex = sectionOrder.indexOf(right);
+    return (leftIndex === -1 ? 999 : leftIndex) - (rightIndex === -1 ? 999 : rightIndex);
+  });
   openActionModal({
-    eyebrow: "Facility history",
+    eyebrow: "Full permit and facility record",
     title: permit.facilityName,
     body: `
-      <div class="history-grid">
-        ${rows.map(([label, value]) => `
-          <div class="answer-row">
-            <strong>${escapeHtml(label)}</strong>
-            <span>${escapeHtml(value || "Not captured")}</span>
-          </div>
+      <div class="facility-record-summary">
+        <span class="pill ${permit.status === "Active" ? "good" : permit.status === "Suspended" ? "alert" : "warn"}">${escapeHtml(permit.status)}</span>
+        <strong>${escapeHtml(permit.permitNumber)}</strong>
+        <span>${escapeHtml(permit.program)} · ${escapeHtml(permit.permitType)}</span>
+        <span>${escapeHtml(permit.address)}</span>
+        <span>Assigned to ${escapeHtml(permit.assignedTo)}</span>
+      </div>
+      <div class="full-record-toolbar">
+        <span class="pill good">${fields.length} configured permit fields</span>
+        <span class="pill">Union Permit Manager</span>
+        <span class="pill">HS export driven</span>
+      </div>
+      <div class="full-record-sections">
+        ${orderedGroups.map(([section, sectionFields]) => `
+          <section class="full-record-section">
+            <div class="preview-section-head">
+              <h3>${escapeHtml(section)}</h3>
+              <span class="pill">${sectionFields.length} fields</span>
+            </div>
+            <div class="full-record-field-grid">
+              ${sectionFields.map((field) => {
+                const value = permitFieldValue(permit, field);
+                return `
+                  <article class="full-record-field ${field.width === "Full" ? "wide" : ""}">
+                    <div class="field-card-head">${fieldBadges(field)}</div>
+                    <strong>${escapeHtml(field.label)}</strong>
+                    <span>${escapeHtml(value || "Not captured yet")}</span>
+                    <small>${escapeHtml(hsFieldId(field))}${field.conditionalRule ? ` · ${escapeHtml(field.conditionalRule)}` : ""}</small>
+                  </article>
+                `;
+              }).join("")}
+            </div>
+          </section>
         `).join("")}
       </div>
       <section class="linked-activity">
@@ -1244,13 +1426,49 @@ function openEmailComposer(permit) {
   });
 }
 
+function selectAiInspectionControl(attempt = 0) {
+  if (!inspectionFrame?.contentDocument) return;
+  const buttons = [...inspectionFrame.contentDocument.querySelectorAll("button")];
+  const aiInspectionButton = buttons.find((button) => button.textContent.trim() === "AI Inspection");
+  if (aiInspectionButton) {
+    aiInspectionButton.click();
+    return;
+  }
+  if (attempt < 12) {
+    window.setTimeout(() => selectAiInspectionControl(attempt + 1), 350);
+  }
+}
+
+function openInspectionForPermit(permit) {
+  const params = new URLSearchParams({
+    embedded: "agency-os",
+    agency: state.activeAgencyId,
+    permit: permit.permitNumber,
+    facility: permit.facilityName
+  });
+  const inspectionUrl = `./inspections.html?${params.toString()}#inspection`;
+  if (inspectionFrame) {
+    const current = inspectionFrame.getAttribute("src") || "";
+    if (current !== inspectionUrl) {
+      inspectionFrame.src = inspectionUrl;
+      inspectionFrame.addEventListener("load", () => selectAiInspectionControl(), { once: true });
+    } else {
+      selectAiInspectionControl();
+    }
+  }
+  if (inspectionFullPageLink) inspectionFullPageLink.href = inspectionUrl;
+  if (inspectionContextNote) {
+    inspectionContextNote.textContent = `AI inspection control for ${permit.facilityName} · ${permit.permitNumber}.`;
+  }
+  setView("inspections");
+  window.setTimeout(() => selectAiInspectionControl(), 650);
+  updateDataStatus(`Opened AI inspection control for ${permit.facilityName}`, "good");
+}
+
 function handlePermitAction(action, permit) {
   if (!permit) return;
   if (action === "history") openFacilityHistory(permit);
-  if (action === "inspection") {
-    setView("inspections");
-    updateDataStatus(`Opened inspection module for ${permit.facilityName}`, "good");
-  }
+  if (action === "inspection") openInspectionForPermit(permit);
   if (action === "complaint") openComplaintDraft(permit);
   if (action === "email") openEmailComposer(permit);
 }
@@ -2378,6 +2596,8 @@ function renderRoles() {
 navButtons.forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.view));
 });
+
+mobileMenuToggle?.addEventListener("click", toggleMobileMenu);
 
 permitSearchInput?.addEventListener("input", renderPermitListScreen);
 permitFacilityTypeFilter?.addEventListener("change", renderPermitListScreen);
