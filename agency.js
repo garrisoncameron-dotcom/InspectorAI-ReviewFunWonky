@@ -436,6 +436,12 @@ async function loadPersistedState() {
     state.savedAt = null;
     state.dataStatus = "seed";
   }
+  const addedSeedForms = ensureAgencySeedForms();
+  if (addedSeedForms && window.AgencyDataStore) {
+    const saved = await window.AgencyDataStore.saveAppState(snapshotConfiguration());
+    state.savedAt = saved.savedAt;
+    state.dataStatus = "saved";
+  }
   state.syncEvents = snapshot.syncEvents || [];
   state.testRecords = snapshot.records || [];
   renderAgencyEnvironment();
@@ -818,6 +824,10 @@ function isHsTemplateFlatfile(text) {
 function mapHsFieldType(type, label, options) {
   const normalizedType = type.toLowerCase();
   const normalizedLabel = label.toLowerCase();
+  if (normalizedType.includes("address control")) return "Address lookup";
+  if (normalizedType.includes("embedded form search")) return normalizedLabel.includes("address") ? "Address lookup" : "Record lookup";
+  if (normalizedType.includes("auto-build") || normalizedType.includes("read-only")) return "Read-only";
+  if (normalizedType.includes("calculation")) return "Calculated";
   if (normalizedType.includes("email")) return "Email";
   if (normalizedType.includes("phone")) return "Phone";
   if (normalizedType.includes("textarea")) return "Long text";
@@ -825,7 +835,7 @@ function mapHsFieldType(type, label, options) {
   if (normalizedType.includes("number")) return "Number";
   if (normalizedType.includes("date")) return "Date";
   if (normalizedType.includes("checkbox")) return "Checkbox";
-  if (normalizedType.includes("drop down") || normalizedType.includes("assigned") || normalizedType.includes("embedded form search")) {
+  if (normalizedType.includes("drop down") || normalizedType.includes("assigned")) {
     return options.trim() ? "Select" : "Text";
   }
   if (normalizedType.includes("information box")) return "Long text";
@@ -840,7 +850,7 @@ function mapHsFieldSection(label, group, type) {
   if (source.includes("permit") || source.includes("construction") || source.includes("plan review")) return "Permit";
   if (source.includes("fee") || source.includes("payment") || source.includes("billing")) return "Billing";
   if (source.includes("complaint")) return "Complaints";
-  if (source.includes("assigned") || source.includes("status") || source.includes("review")) return "Internal review";
+  if (source.includes("assigned") || source.includes("review")) return "Internal review";
   return "Application";
 }
 
@@ -939,6 +949,78 @@ function fieldsFromHsTemplateFlatfile(text) {
       ["Reliability boundary", "This is much more reliable than PDF extraction for fields included in the export, but it cannot infer attributes not present in the flatfile, such as exact page layout, external lookup behavior, legal rules, or advanced validation."]
     ]
   };
+}
+
+function seedFieldAdjustments(field, seed) {
+  const sourceType = field.helpText.match(/Original HS type: ([^|]+)/)?.[1]?.trim() || "";
+  const lowerLabel = field.label.toLowerCase();
+  const adjusted = {
+    ...field,
+    section: seed.defaultSection || field.section,
+    recordMap: seed.recordMap || field.recordMap,
+    sourceLink: "Agency SOP",
+    helpText: `${field.helpText || "Imported from HS field export."} | Seed template: ${seed.title}. Admin can edit every property before publishing.`
+  };
+  if (seed.recordMap === "Complaint") adjusted.section = "Complaints";
+  if (seed.recordMap === "Permit") adjusted.section = "Permit";
+  if (seed.recordMap === "Facility" && seed.id.includes("location")) adjusted.section = "Permit";
+  if (seed.recordMap === "Facility" && seed.id.includes("address")) adjusted.section = "Application";
+  if (field.type === "Address lookup") {
+    adjusted.width = "Full";
+    adjusted.recordMap = "Facility";
+    adjusted.placeholder = "Search address, parcel, owner, or location";
+    adjusted.helpText = `${adjusted.helpText} | Address UX target: open a typeahead address modal, allow add-new address, and link the selected address record.`;
+  }
+  if (field.type === "Record lookup") {
+    adjusted.width = "Full";
+    adjusted.placeholder = lowerLabel.includes("permit") ? "Search permit record" : "Search linked record";
+  }
+  if (field.type === "Read-only" || field.type === "Calculated") {
+    adjusted.visibility = "Staff only";
+    adjusted.editRole = "Agency admin";
+    adjusted.auditLevel = "High";
+  }
+  if (sourceType.includes("Information Box")) {
+    adjusted.visibility = "Staff only";
+    adjusted.editRole = "Agency admin";
+  }
+  if (field.key?.includes("recordAssignedToUserID") || lowerLabel.includes("assigned to")) {
+    adjusted.visibility = "Staff only";
+    adjusted.editRole = "Supervisor";
+    adjusted.section = "Internal review";
+  }
+  return adjusted;
+}
+
+function formFromHsSeed(seed, index, packageVersion) {
+  const draft = fieldsFromHsTemplateFlatfile(seed.flatfile || "");
+  return {
+    id: seed.id,
+    title: seed.title,
+    source: `Union County HS export: ${seed.sourceName}`,
+    status: "template",
+    description: seed.description,
+    seedVersion: packageVersion,
+    fields: draft.fields.map((field, fieldIndex) => seedFieldAdjustments({
+      ...field,
+      id: `${seed.id}-${field.id || fieldIndex}`
+    }, seed))
+  };
+}
+
+function ensureAgencySeedForms() {
+  const packageForAgency = window.AgencySeedFlatfiles?.[state.activeAgencyId];
+  if (!packageForAgency?.forms?.length) return false;
+  let added = false;
+  packageForAgency.forms.forEach((seed, index) => {
+    if (state.forms.some((form) => form.id === seed.id)) return;
+    state.forms.push(formFromHsSeed(seed, index, packageForAgency.version));
+    added = true;
+  });
+  if (added && !state.forms.some((form) => form.id === state.activeFormId)) {
+    state.activeFormId = packageForAgency.forms[0].id;
+  }
+  return added;
 }
 
 function isLikelySection(line) {
@@ -1427,6 +1509,25 @@ function inputForField(field) {
   }
   if (field.type === "Signature") {
     return `<input name="${name}" type="text" ${required} placeholder="Typed signature for test submission" />`;
+  }
+  if (field.type === "Address lookup") {
+    return `
+      <div class="lookup-control address-lookup-control">
+        <input name="${name}" type="search" ${required} placeholder="${placeholder || "Search address, parcel, owner, or location"}" />
+        <button type="button">Open address modal</button>
+      </div>
+    `;
+  }
+  if (field.type === "Record lookup") {
+    return `
+      <div class="lookup-control">
+        <input name="${name}" type="search" ${required} placeholder="${placeholder || "Search linked record"}" />
+        <button type="button">Link record</button>
+      </div>
+    `;
+  }
+  if (field.type === "Read-only" || field.type === "Calculated") {
+    return `<input name="${name}" type="text" readonly placeholder="${placeholder || field.type}" />`;
   }
   if (field.type === "Address") {
     return `<input name="${name}" type="text" ${required} placeholder="${placeholder || "Street, city, state, ZIP"}" />`;
