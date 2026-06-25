@@ -378,6 +378,8 @@ const permitSearchInput = document.querySelector("#permitSearchInput");
 const permitStatusFilter = document.querySelector("#permitStatusFilter");
 const permitListScreen = document.querySelector("#permitListScreen");
 const permitDetailPanel = document.querySelector("#permitDetailPanel");
+const intakeSubmissionList = document.querySelector("#intakeSubmissionList");
+const intakeRecordCount = document.querySelector("#intakeRecordCount");
 const templateList = document.querySelector("#templateList");
 const blueprintList = document.querySelector("#blueprintList");
 const fieldList = document.querySelector("#fieldList");
@@ -458,6 +460,15 @@ function slugForAgencyName(name) {
   return slugify(name).replace(/-county$/, "-county") || `agency-${Date.now()}`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function cloneForms(forms) {
   return JSON.parse(JSON.stringify(forms));
 }
@@ -495,6 +506,7 @@ async function refreshLocalSnapshotStatus() {
   const snapshot = await window.AgencyDataStore.loadSnapshot(state.activeAgencyId);
   state.syncEvents = snapshot.syncEvents || [];
   state.testRecords = snapshot.records || [];
+  renderIntakeSubmissions();
   updateDataStatus();
 }
 
@@ -751,6 +763,62 @@ function filteredPermitRecords() {
     ].join(" ").toLowerCase();
     return matchesStatus && (!query || haystack.includes(query));
   });
+}
+
+function submissionDisplayName(record) {
+  const answers = record.answers || {};
+  return answers["hs.permitName"]
+    || answers["hs.OwnerTenant"]
+    || answers["hs.complainantFirstName"] && `${answers["hs.complainantFirstName"]} ${answers["hs.complainantLastName"] || ""}`.trim()
+    || answers["facility.name"]
+    || answers["business.name"]
+    || record.formTitle
+    || "Untitled submission";
+}
+
+function submissionMeta(record) {
+  const answers = record.answers || {};
+  return [
+    answers["hs.StateAgencyNum"],
+    answers["hs.FacilityPhone"],
+    answers["hs.ComplainantEmail"],
+    answers["hs.FacilityEmail"],
+    record.source
+  ].filter(Boolean).join(" · ");
+}
+
+function renderIntakeSubmissions() {
+  if (!intakeSubmissionList || !intakeRecordCount) return;
+  const records = [...(state.testRecords || [])]
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .slice(0, 8);
+  intakeRecordCount.textContent = `${records.length} ${records.length === 1 ? "record" : "records"}`;
+  intakeSubmissionList.innerHTML = records.length ? records.map((record) => {
+    const created = record.createdAt ? new Date(record.createdAt).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    }) : "No timestamp";
+    const tone = record.syncStatus === "synced" ? "good" : "warn";
+    return `
+      <article class="intake-row">
+        <span class="pill ${tone}">${escapeHtml(record.syncStatus || record.status || "local")}</span>
+        <div>
+          <strong>${escapeHtml(submissionDisplayName(record))}</strong>
+          <p>${escapeHtml(record.formTitle || record.formId || "Public submission")}</p>
+          <small>${escapeHtml(submissionMeta(record) || "No contact details captured")}</small>
+        </div>
+        <span>${escapeHtml(record.type || "application")}</span>
+        <span>${escapeHtml(created)}</span>
+      </article>
+    `;
+  }).join("") : `
+    <article class="empty-state compact-empty">
+      <strong>No public submissions yet.</strong>
+      <p>Submitted public applications and complaints will appear here after Supabase sync.</p>
+    </article>
+  `;
 }
 
 function renderPermitListScreen() {
@@ -1987,6 +2055,7 @@ hydrateAccessModeFromUrl();
 await loadPersistedState();
 renderModules();
 renderTimeline();
+renderIntakeSubmissions();
 renderPermitListScreen();
 renderTemplates();
 renderBlueprint();
