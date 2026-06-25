@@ -36,6 +36,7 @@ textarea {
 
 button {
   cursor: pointer;
+  min-width: 0;
 }
 
 .agency-shell {
@@ -275,6 +276,7 @@ h2 {
 }
 
 .panel {
+  min-width: 0;
   padding: 18px;
   box-shadow: var(--shadow);
 }
@@ -312,6 +314,7 @@ h2 {
 }
 
 .module-card {
+  min-width: 0;
   padding: 14px;
   text-align: left;
 }
@@ -418,6 +421,7 @@ h2 {
 .studio-tabs {
   display: flex;
   gap: 8px;
+  max-width: 100%;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -648,6 +652,23 @@ h2 {
   margin-bottom: 12px;
 }
 
+.builder-meta .pill {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.data-status-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -4px 0 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
 .blueprint-item,
 .workflow-lane,
 .fee-row,
@@ -856,6 +877,10 @@ h2 {
   box-shadow: 0 30px 80px #16130f42;
 }
 
+.full-form-modal {
+  width: min(1120px, 100%);
+}
+
 .modal-header {
   position: sticky;
   top: 0;
@@ -944,6 +969,74 @@ h2 {
   border-top: 1px solid var(--line);
 }
 
+.full-form-preview {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.preview-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+}
+
+.preview-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.preview-section-head h3 {
+  margin: 0;
+}
+
+.preview-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.preview-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 820;
+}
+
+.preview-field.wide {
+  grid-column: 1 / -1;
+}
+
+.preview-field input,
+.preview-field select,
+.preview-field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.preview-field small {
+  color: var(--muted);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.inline-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
 @media (max-width: 1100px) {
   .agency-shell,
   .dashboard-grid,
@@ -966,10 +1059,21 @@ h2 {
 }
 
 @media (max-width: 720px) {
+  .workspace,
+  .panel,
+  .module-card,
+  .config-layout,
+  .builder-layout,
+  .ai-layout {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .metric-grid,
   .module-grid,
   .ai-mode-grid,
   .ai-input-grid,
+  .preview-field-grid,
   .field-builder,
   .nav-group {
     grid-template-columns: 1fr;
@@ -990,6 +1094,15 @@ h2 {
 
   .studio-readiness {
     grid-template-columns: 1fr;
+  }
+
+  .studio-tabs {
+    max-width: calc(100vw - 36px);
+  }
+
+  .top-actions > button,
+  .data-status-strip > button {
+    flex: 1 1 130px;
   }
 
   .modal-page,
