@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f4ee" />
     <title>InspectAid Agency OS</title>
-    <link rel="stylesheet" href="./agency.css?v=ai-1" />
+    <link rel="stylesheet" href="./agency.css?v=data-1" />
   </head>
   <body>
     <div class="agency-shell">
@@ -174,9 +174,16 @@
                     <h2 id="activeFormTitle">Food service application</h2>
                   </div>
                   <div class="top-actions">
+                    <button id="saveDraftButton" class="secondary-button" type="button">Save draft</button>
+                    <button id="publishFormButton" class="primary-button" type="button">Publish</button>
                     <button id="addFieldButton" class="primary-button" type="button">Add field</button>
                     <button id="previewFormButton" class="secondary-button" type="button">Preview</button>
                   </div>
+                </div>
+                <div class="data-status-strip" aria-live="polite">
+                  <span id="dataStatusText" class="pill warn">loading local cache</span>
+                  <span id="syncQueueStatus" class="pill">0 pending sync events</span>
+                  <button id="resetLocalDataButton" class="ghost-button compact-button" type="button">Reset local test data</button>
                 </div>
                 <div id="activeFormMeta" class="builder-meta"></div>
                 <div id="fieldList" class="field-list field-canvas" aria-live="polite"></div>
@@ -553,6 +560,7 @@
       </section>
     </div>
 
-    <script defer src="./agency.js?v=ai-1"></script>
+    <script defer src="./agency-data.js?v=data-1"></script>
+    <script defer src="./agency.js?v=data-1"></script>
   </body>
 </html>
