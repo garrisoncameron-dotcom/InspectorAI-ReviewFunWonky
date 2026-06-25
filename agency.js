@@ -3,6 +3,13 @@ const state = {
   activeView: "command",
   activeStudio: "templates",
   activeTemplate: "food-service",
+  activeAgencyId: "mecklenburg-county-nc",
+  agencies: [
+    { id: "mecklenburg-county-nc", name: "Mecklenburg County NC", slug: "mecklenburg-county-nc", url: "/mecklenburg-county-nc", role: "company_admin" },
+    { id: "union-county-nc", name: "Union County NC", slug: "union-county-nc", url: "/union-county-nc", role: "company_admin" },
+    { id: "wake-county-nc", name: "Wake County NC", slug: "wake-county-nc", url: "/wake-county-nc", role: "company_admin" },
+    { id: "demo-agency", name: "Demo Agency", slug: "demo-agency", url: "/demo-agency", role: "company_admin" }
+  ],
   activeFormId: "food-application",
   editingFieldId: null,
   activeModalTab: "general",
@@ -318,6 +325,11 @@ const publishFormButton = document.querySelector("#publishFormButton");
 const resetLocalDataButton = document.querySelector("#resetLocalDataButton");
 const dataStatusText = document.querySelector("#dataStatusText");
 const syncQueueStatus = document.querySelector("#syncQueueStatus");
+const activeAgencyName = document.querySelector("#activeAgencyName");
+const activeAgencyUrl = document.querySelector("#activeAgencyUrl");
+const agencySelector = document.querySelector("#agencySelector");
+const addAgencyButton = document.querySelector("#addAgencyButton");
+const newAgencyName = document.querySelector("#newAgencyName");
 const fieldModal = document.querySelector("#fieldModal");
 const fieldModalForm = document.querySelector("#fieldModalForm");
 const fieldModalTitle = document.querySelector("#fieldModalTitle");
@@ -344,6 +356,24 @@ const aiDraftSummary = document.querySelector("#aiDraftSummary");
 const aiDraftStatus = document.querySelector("#aiDraftStatus");
 const openAiAssistSource = document.querySelector("#openAiAssistSource");
 const aiInputPanels = [...document.querySelectorAll("[data-ai-input]")];
+const starterForms = cloneForms(state.forms);
+
+function activeAgency() {
+  return state.agencies.find((agency) => agency.id === state.activeAgencyId) || state.agencies[0];
+}
+
+function renderAgencyEnvironment() {
+  const agency = activeAgency();
+  activeAgencyName.textContent = agency.name;
+  activeAgencyUrl.textContent = agency.url || `/${agency.slug}`;
+  agencySelector.innerHTML = state.agencies.map((item) => `
+    <option value="${item.id}" ${item.id === state.activeAgencyId ? "selected" : ""}>${item.name}</option>
+  `).join("");
+}
+
+function slugForAgencyName(name) {
+  return slugify(name).replace(/-county$/, "-county") || `agency-${Date.now()}`;
+}
 
 function cloneForms(forms) {
   return JSON.parse(JSON.stringify(forms));
@@ -351,6 +381,7 @@ function cloneForms(forms) {
 
 function snapshotConfiguration() {
   return {
+    agencyId: state.activeAgencyId,
     activeFormId: state.activeFormId,
     forms: cloneForms(state.forms),
     template: state.activeTemplate
@@ -378,7 +409,7 @@ function markDirty() {
 
 async function refreshLocalSnapshotStatus() {
   if (!window.AgencyDataStore) return;
-  const snapshot = await window.AgencyDataStore.loadSnapshot();
+  const snapshot = await window.AgencyDataStore.loadSnapshot(state.activeAgencyId);
   state.syncEvents = snapshot.syncEvents || [];
   state.testRecords = snapshot.records || [];
   updateDataStatus();
@@ -390,7 +421,9 @@ async function loadPersistedState() {
     updateDataStatus("Offline cache unavailable", "warn");
     return;
   }
-  const snapshot = await window.AgencyDataStore.loadSnapshot();
+  state.agencies = await window.AgencyDataStore.loadAgencies(state.agencies);
+  state.activeAgencyId = await window.AgencyDataStore.getCurrentAgencyId(state.activeAgencyId);
+  const snapshot = await window.AgencyDataStore.loadSnapshot(state.activeAgencyId);
   if (snapshot.appState?.forms?.length) {
     state.forms = snapshot.appState.forms;
     state.activeFormId = snapshot.appState.activeFormId || state.forms[0]?.id || state.activeFormId;
@@ -398,10 +431,14 @@ async function loadPersistedState() {
     state.savedAt = snapshot.appState.savedAt || null;
     state.dataStatus = "saved";
   } else {
+    state.forms = cloneForms(starterForms);
+    state.activeFormId = state.forms[0]?.id || "food-application";
+    state.savedAt = null;
     state.dataStatus = "seed";
   }
   state.syncEvents = snapshot.syncEvents || [];
   state.testRecords = snapshot.records || [];
+  renderAgencyEnvironment();
 }
 
 async function saveConfiguration(message = "Saved full form schema") {
@@ -421,6 +458,49 @@ async function publishActiveForm() {
   form.source = form.source || "Agency-owned form";
   await saveConfiguration(`Published ${form.fields.length} field form`);
   renderFormBuilder();
+}
+
+async function switchAgencyEnvironment(agencyId) {
+  if (state.dataStatus === "dirty") {
+    await saveConfiguration("Saved before switching agency");
+  }
+  state.activeAgencyId = agencyId;
+  await window.AgencyDataStore.setCurrentAgencyId(agencyId);
+  state.aiDraft = null;
+  await loadPersistedState();
+  renderAgencyEnvironment();
+  renderTemplates();
+  renderBlueprint();
+  renderFormBuilder();
+  renderAiDraft();
+  updateDataStatus(`Loaded ${activeAgency().name}`, "good");
+}
+
+async function addAgencyEnvironment() {
+  const name = newAgencyName.value.trim();
+  if (!name) {
+    newAgencyName.focus();
+    return;
+  }
+  const baseSlug = slugForAgencyName(name);
+  let slug = baseSlug;
+  let counter = 2;
+  while (state.agencies.some((agency) => agency.id === slug)) {
+    slug = `${baseSlug}-${counter}`;
+    counter += 1;
+  }
+  const agency = {
+    id: slug,
+    name,
+    slug,
+    url: `/${slug}`,
+    role: "company_admin"
+  };
+  state.agencies.push(agency);
+  await window.AgencyDataStore.saveAgencies(state.agencies);
+  await switchAgencyEnvironment(agency.id);
+  await saveConfiguration(`Created ${agency.name} environment`);
+  newAgencyName.value = "";
 }
 
 function setView(view) {
@@ -1180,7 +1260,7 @@ async function submitFullFormPreview(event) {
       answers[key] = data.get(key) || "";
     }
   });
-  const record = await window.AgencyDataStore.saveTestSubmission(form, answers);
+  const record = await window.AgencyDataStore.saveTestSubmission(form, answers, state.activeAgencyId);
   await refreshLocalSnapshotStatus();
   document.querySelector("#fullFormPreview")?.remove();
   updateDataStatus(`Saved full test submission ${record.id.slice(0, 18)}`, "good");
@@ -1278,11 +1358,13 @@ addFieldButton.addEventListener("click", () => openFieldModal());
 saveDraftButton.addEventListener("click", () => saveConfiguration());
 publishFormButton.addEventListener("click", publishActiveForm);
 resetLocalDataButton.addEventListener("click", async () => {
-  if (!window.confirm("Reset local test data and return to the starter forms?")) return;
-  await window.AgencyDataStore.clearAll();
+  if (!window.confirm(`Reset local test data for ${activeAgency().name} and return to the starter forms?`)) return;
+  await window.AgencyDataStore.clearAgency(state.activeAgencyId);
   window.location.reload();
 });
 previewFormButton.addEventListener("click", openFullFormPreview);
+agencySelector.addEventListener("change", () => switchAgencyEnvironment(agencySelector.value));
+addAgencyButton.addEventListener("click", addAgencyEnvironment);
 
 document.querySelector("#openInspectionModule").addEventListener("click", () => setView("inspections"));
 document.querySelector("#configureAgency").addEventListener("click", () => setView("configuration"));
