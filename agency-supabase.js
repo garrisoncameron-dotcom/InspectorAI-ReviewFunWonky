@@ -28,7 +28,7 @@ const InspectAidSupabase = (() => {
     const supabase = await client();
     if (!supabase) return [];
     const { data, error } = await supabase
-      .from("agency_members")
+      .from("agency_users")
       .select("agency_id, role, status, agencies(slug, name)")
       .eq("status", "active");
     if (error) throw error;
@@ -92,10 +92,24 @@ const InspectAidSupabase = (() => {
     return { remote: true, data };
   }
 
+  async function listSubmissions(agencyId, limit = 50) {
+    const supabase = await client();
+    if (!supabase) return { remote: false, data: [] };
+    const { data, error } = await supabase
+      .from("public_submissions")
+      .select("id, agency_slug, form_key, form_title, record_type, status, source, answers, submitted_at, updated_at")
+      .eq("agency_slug", agencyId)
+      .order("submitted_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return { remote: true, data: data || [] };
+  }
+
   return {
     client,
     enabled,
     getSession,
+    listSubmissions,
     listAgencyMemberships,
     saveConfiguration,
     submitApplication,
