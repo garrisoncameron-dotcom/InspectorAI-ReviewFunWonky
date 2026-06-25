@@ -491,8 +491,9 @@ function statusTone(status) {
 function updateDataStatus(message = null, tone = null) {
   const pending = state.syncEvents.filter((event) => event.status === "pending").length;
   const savedText = state.savedAt ? `Saved ${new Date(state.savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not saved yet";
-  dataStatusText.textContent = message || `${savedText} in offline cache`;
-  dataStatusText.className = `pill ${tone || (state.dataStatus === "saved" ? "good" : "warn")}`;
+  const liveText = window.InspectAidSupabase?.enabled ? `${savedText} · Supabase live + offline cache` : `${savedText} in offline cache`;
+  dataStatusText.textContent = message || liveText;
+  dataStatusText.className = `pill ${tone || (window.InspectAidSupabase?.enabled || state.dataStatus === "saved" ? "good" : "warn")}`;
   syncQueueStatus.textContent = `${pending} pending sync ${pending === 1 ? "event" : "events"}`;
 }
 
