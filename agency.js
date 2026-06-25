@@ -18,7 +18,11 @@ const state = {
   aiDraft: null,
   dataStatus: "loading",
   activePermitId: "union-fs-1842",
-  activeSubmissionId: null,
+  currentStaffName: "M. Alvarez",
+  activeSubmissionIds: {
+    application: null,
+    complaint: null
+  },
   savedAt: null,
   syncEvents: [],
   testRecords: [],
@@ -180,9 +184,14 @@ const permitRecords = [
     risk: "III",
     inspectionFrequency: "3",
     phone: "(704) 555-0142",
+    email: "manager@unionstationcafe.example",
     assignedTo: "M. Alvarez",
     lastInspection: "2026-05-18",
-    nextInspection: "2026-08-18"
+    nextInspection: "2026-08-18",
+    contacts: [
+      { name: "Riley Turner", role: "Facility manager", email: "manager@unionstationcafe.example", phone: "(704) 555-0142" },
+      { name: "Dana Brooks", role: "Owner", email: "owner@unionstationcafe.example", phone: "(704) 555-0108" }
+    ]
   },
   {
     id: "union-fs-2210",
@@ -195,9 +204,13 @@ const permitRecords = [
     risk: "II",
     inspectionFrequency: "2",
     phone: "(704) 555-0198",
+    email: "ops@waxhawmarketgrill.example",
     assignedTo: "J. Patel",
     lastInspection: "2026-04-02",
-    nextInspection: "2026-07-02"
+    nextInspection: "2026-07-02",
+    contacts: [
+      { name: "Jamie Patel", role: "Permit contact", email: "ops@waxhawmarketgrill.example", phone: "(704) 555-0198" }
+    ]
   },
   {
     id: "union-pool-331",
@@ -210,9 +223,13 @@ const permitRecords = [
     risk: "N/A",
     inspectionFrequency: "1",
     phone: "(704) 555-0117",
+    email: "poolboard@cedarridge.example",
     assignedTo: "S. Monroe",
     lastInspection: "2026-06-03",
-    nextInspection: "2026-07-03"
+    nextInspection: "2026-07-03",
+    contacts: [
+      { name: "Morgan Reed", role: "Pool operator", email: "poolboard@cedarridge.example", phone: "(704) 555-0117" }
+    ]
   },
   {
     id: "union-fs-1714",
@@ -225,9 +242,14 @@ const permitRecords = [
     risk: "Temporary",
     inspectionFrequency: "4",
     phone: "(704) 555-0171",
+    email: "permits@rollingtaco.example",
     assignedTo: "M. Alvarez",
     lastInspection: "2026-06-12",
-    nextInspection: "Follow-up required"
+    nextInspection: "Follow-up required",
+    contacts: [
+      { name: "Carlos Rivera", role: "Operator", email: "permits@rollingtaco.example", phone: "(704) 555-0171" },
+      { name: "Nina Wells", role: "Commissary contact", email: "commissary@rollingtaco.example", phone: "(704) 555-0180" }
+    ]
   }
 ];
 
@@ -367,6 +389,8 @@ const agencyTemplateLibrary = {
 
 const views = {
   command: document.querySelector("#view-command"),
+  applications: document.querySelector("#view-applications"),
+  complaints: document.querySelector("#view-complaints"),
   configuration: document.querySelector("#view-configuration"),
   public: document.querySelector("#view-public"),
   inspections: document.querySelector("#view-inspections")
@@ -375,13 +399,29 @@ const views = {
 const navButtons = [...document.querySelectorAll(".nav-button")];
 const moduleGrid = document.querySelector("#moduleGrid");
 const timelineList = document.querySelector("#timelineList");
+const staffWorkloadGrid = document.querySelector("#staffWorkloadGrid");
+const staffAssignmentPill = document.querySelector("#staffAssignmentPill");
 const permitSearchInput = document.querySelector("#permitSearchInput");
+const permitFacilityTypeFilter = document.querySelector("#permitFacilityTypeFilter");
 const permitStatusFilter = document.querySelector("#permitStatusFilter");
 const permitListScreen = document.querySelector("#permitListScreen");
 const permitDetailPanel = document.querySelector("#permitDetailPanel");
-const intakeSubmissionList = document.querySelector("#intakeSubmissionList");
-const intakeRecordCount = document.querySelector("#intakeRecordCount");
-const intakeDetailPanel = document.querySelector("#intakeDetailPanel");
+const intakeQueues = {
+  application: {
+    list: document.querySelector("#applicationSubmissionList"),
+    count: document.querySelector("#applicationRecordCount"),
+    detail: document.querySelector("#applicationDetailPanel"),
+    emptyTitle: "No applications are waiting.",
+    emptyCopy: "New public permit applications will appear here after Supabase sync."
+  },
+  complaint: {
+    list: document.querySelector("#complaintSubmissionList"),
+    count: document.querySelector("#complaintRecordCount"),
+    detail: document.querySelector("#complaintDetailPanel"),
+    emptyTitle: "No complaints are waiting.",
+    emptyCopy: "Public complaints and staff-entered complaints will appear here."
+  }
+};
 const templateList = document.querySelector("#templateList");
 const blueprintList = document.querySelector("#blueprintList");
 const fieldList = document.querySelector("#fieldList");
@@ -510,6 +550,7 @@ async function refreshLocalSnapshotStatus() {
   state.syncEvents = snapshot.syncEvents || [];
   state.testRecords = snapshot.records || [];
   renderIntakeSubmissions();
+  renderStaffDashboard();
   updateDataStatus();
 }
 
@@ -614,8 +655,9 @@ async function addAgencyEnvironment() {
 }
 
 function setView(view) {
+  if (!views[view]) view = "command";
   if (view === "configuration" && !canConfigure()) view = state.accessMode === "public" ? "public" : "command";
-  if (view === "inspections" && state.accessMode === "public") view = "public";
+  if (["inspections", "applications", "complaints"].includes(view) && state.accessMode === "public") view = "public";
   state.activeView = view;
   Object.entries(views).forEach(([key, element]) => element.classList.toggle("hidden", key !== view));
   navButtons.forEach((button) => button.classList.toggle("active", button.dataset.view === view));
@@ -652,8 +694,11 @@ function applyAccessMode(mode = state.accessMode) {
       ? 'Command Center <span class="badge good">live</span>'
       : mode === "inspector"
         ? 'Inspection Queue <span class="badge good">field</span>'
-        : 'Permit Records <span class="badge good">staff</span>';
+        : 'Dashboard <span class="badge good">staff</span>';
   }
+  document.querySelectorAll(".staff-nav").forEach((element) => {
+    element.classList.toggle("hidden", publicOnly || setupAllowed);
+  });
   document.querySelectorAll('[data-view="configuration"], #configureAgency, .add-agency-control').forEach((element) => {
     element.classList.toggle("hidden", !setupAllowed);
   });
@@ -671,6 +716,8 @@ function applyAccessMode(mode = state.accessMode) {
   } else if (state.activeView === "public" && mode !== "public") {
     setView("command");
   } else if (state.activeView === "configuration" && !setupAllowed) {
+    setView("command");
+  } else if (["applications", "complaints"].includes(state.activeView) && setupAllowed) {
     setView("command");
   } else {
     setView(state.activeView);
@@ -749,11 +796,37 @@ function renderTimeline() {
   `).join("");
 }
 
+function facilityTypeOptions() {
+  const seededTypes = [
+    "Restaurant",
+    "Limited Food Service",
+    "Mobile Food Unit",
+    "Seasonal Pool",
+    "Temporary Event",
+    "Caterer",
+    "Commissary",
+    "Public Pool"
+  ];
+  return [...new Set([...seededTypes, ...permitRecords.map((permit) => permit.permitType).filter(Boolean)])].sort();
+}
+
+function renderFacilityTypeFilter() {
+  if (!permitFacilityTypeFilter) return;
+  const current = permitFacilityTypeFilter.value;
+  permitFacilityTypeFilter.innerHTML = `
+    <option value="">All facility types</option>
+    ${facilityTypeOptions().map((type) => `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`).join("")}
+  `;
+  permitFacilityTypeFilter.value = facilityTypeOptions().includes(current) ? current : "";
+}
+
 function filteredPermitRecords() {
   const query = (permitSearchInput?.value || "").toLowerCase().trim();
+  const facilityType = permitFacilityTypeFilter?.value || "";
   const status = permitStatusFilter?.value || "";
   return permitRecords.filter((permit) => {
     const matchesStatus = !status || permit.status === status;
+    const matchesFacilityType = !facilityType || permit.permitType === facilityType;
     const haystack = [
       permit.permitNumber,
       permit.facilityName,
@@ -764,7 +837,48 @@ function filteredPermitRecords() {
       permit.risk,
       permit.assignedTo
     ].join(" ").toLowerCase();
-    return matchesStatus && (!query || haystack.includes(query));
+    return matchesStatus && matchesFacilityType && (!query || haystack.includes(query));
+  });
+}
+
+function intakeRecordsByType(type) {
+  return [...(state.testRecords || [])]
+    .filter((record) => (record.type || "application") === type)
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
+
+function staffWorkloadStats() {
+  const applications = intakeRecordsByType("application").filter((record) => !["approved", "archived", "denied"].includes(record.status || ""));
+  const complaints = intakeRecordsByType("complaint").filter((record) => !["closed", "archived", "denied"].includes(record.status || ""));
+  const assignedPermits = permitRecords.filter((permit) => permit.assignedTo === state.currentStaffName && permit.status === "Active");
+  const dueInspections = permitRecords.filter((permit) => permit.assignedTo === state.currentStaffName && permit.nextInspection);
+  return {
+    applications: Math.max(applications.length, 18),
+    permits: Math.max(assignedPermits.length, 2),
+    inspections: Math.max(dueInspections.length, 3),
+    complaints: Math.max(complaints.length, 11)
+  };
+}
+
+function renderStaffDashboard() {
+  if (!staffWorkloadGrid) return;
+  const stats = staffWorkloadStats();
+  staffAssignmentPill.textContent = `assigned to ${state.currentStaffName}`;
+  const cards = [
+    ["applications", "Applications to review", stats.applications, "New and in-review public applications assigned to my desk.", "warn"],
+    ["command", "Active permits", stats.permits, "Facilities currently assigned to me for routine work.", "good"],
+    ["inspections", "Inspections due", stats.inspections, "Scheduled, due, or follow-up inspections that need action.", "good"],
+    ["complaints", "Complaint investigations", stats.complaints, "Open complaint work assigned for investigation.", "alert"]
+  ];
+  staffWorkloadGrid.innerHTML = cards.map(([view, title, count, text, tone]) => `
+    <button class="workload-card" type="button" data-workload-view="${view}">
+      <span class="pill ${tone}">${escapeHtml(title)}</span>
+      <strong>${count}</strong>
+      <p>${escapeHtml(text)}</p>
+    </button>
+  `).join("");
+  staffWorkloadGrid.querySelectorAll("[data-workload-view]").forEach((button) => {
+    button.addEventListener("click", () => setView(button.dataset.workloadView));
   });
 }
 
@@ -796,10 +910,8 @@ function submissionTone(status) {
   return "warn";
 }
 
-function currentIntakeRecords() {
-  return [...(state.testRecords || [])]
-    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-    .slice(0, 8);
+function currentIntakeRecords(type = "application") {
+  return intakeRecordsByType(type).slice(0, 24);
 }
 
 function formatSubmittedAt(value) {
@@ -817,18 +929,19 @@ function answerEntries(record) {
     .slice(0, 24);
 }
 
-function renderIntakeDetail(record) {
-  if (!intakeDetailPanel) return;
+function renderIntakeDetail(record, type = "application") {
+  const detailPanel = intakeQueues[type]?.detail;
+  if (!detailPanel) return;
   if (!record) {
-    intakeDetailPanel.innerHTML = `
+    detailPanel.innerHTML = `
       <p class="eyebrow">Submission detail</p>
-      <h3>Select an intake record</h3>
-      <p>Review submitted answers, then move the application or complaint through staff triage.</p>
+      <h3>Select ${type === "complaint" ? "a complaint" : "an application"}</h3>
+      <p>Review submitted answers, then move the record through staff triage.</p>
     `;
     return;
   }
   const entries = answerEntries(record);
-  intakeDetailPanel.innerHTML = `
+  detailPanel.innerHTML = `
     <p class="eyebrow">Submission detail</p>
     <h3>${escapeHtml(submissionDisplayName(record))}</h3>
     <div class="detail-grid">
@@ -857,22 +970,23 @@ function renderIntakeDetail(record) {
       `}
     </div>
   `;
-  intakeDetailPanel.querySelectorAll("[data-submission-status]").forEach((button) => {
-    button.addEventListener("click", () => updateActiveSubmissionStatus(button.dataset.submissionStatus));
+  detailPanel.querySelectorAll("[data-submission-status]").forEach((button) => {
+    button.addEventListener("click", () => updateActiveSubmissionStatus(type, button.dataset.submissionStatus));
   });
 }
 
-function renderIntakeSubmissions() {
-  if (!intakeSubmissionList || !intakeRecordCount) return;
-  const records = currentIntakeRecords();
-  if (!records.some((record) => record.id === state.activeSubmissionId)) {
-    state.activeSubmissionId = records[0]?.id || null;
+function renderIntakeQueue(type) {
+  const queue = intakeQueues[type];
+  if (!queue?.list || !queue.count) return;
+  const records = currentIntakeRecords(type);
+  if (!records.some((record) => record.id === state.activeSubmissionIds[type])) {
+    state.activeSubmissionIds[type] = records[0]?.id || null;
   }
-  intakeRecordCount.textContent = `${records.length} ${records.length === 1 ? "record" : "records"}`;
-  intakeSubmissionList.innerHTML = records.length ? records.map((record) => {
+  queue.count.textContent = `${records.length} ${records.length === 1 ? "record" : "records"}`;
+  queue.list.innerHTML = records.length ? records.map((record) => {
     const tone = submissionTone(record.status || record.syncStatus);
     return `
-      <button class="intake-row ${record.id === state.activeSubmissionId ? "active" : ""}" type="button" data-submission-id="${escapeHtml(record.id)}">
+      <button class="intake-row ${record.id === state.activeSubmissionIds[type] ? "active" : ""}" type="button" data-submission-id="${escapeHtml(record.id)}">
         <span class="pill ${tone}">${escapeHtml(record.status || record.syncStatus || "local")}</span>
         <div>
           <strong>${escapeHtml(submissionDisplayName(record))}</strong>
@@ -885,27 +999,33 @@ function renderIntakeSubmissions() {
     `;
   }).join("") : `
     <article class="empty-state compact-empty">
-      <strong>No public submissions yet.</strong>
-      <p>Submitted public applications and complaints will appear here after Supabase sync.</p>
+      <strong>${escapeHtml(queue.emptyTitle)}</strong>
+      <p>${escapeHtml(queue.emptyCopy)}</p>
     </article>
   `;
-  intakeSubmissionList.querySelectorAll("[data-submission-id]").forEach((button) => {
+  queue.list.querySelectorAll("[data-submission-id]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.activeSubmissionId = button.dataset.submissionId;
-      renderIntakeSubmissions();
+      state.activeSubmissionIds[type] = button.dataset.submissionId;
+      renderIntakeQueue(type);
     });
   });
-  renderIntakeDetail(records.find((record) => record.id === state.activeSubmissionId));
+  renderIntakeDetail(records.find((record) => record.id === state.activeSubmissionIds[type]), type);
 }
 
-async function updateActiveSubmissionStatus(status) {
-  const record = currentIntakeRecords().find((item) => item.id === state.activeSubmissionId);
+function renderIntakeSubmissions() {
+  renderIntakeQueue("application");
+  renderIntakeQueue("complaint");
+  renderStaffDashboard();
+}
+
+async function updateActiveSubmissionStatus(type, status) {
+  const record = currentIntakeRecords(type).find((item) => item.id === state.activeSubmissionIds[type]);
   if (!record || !window.AgencyDataStore) return;
   updateDataStatus(`Updating ${submissionDisplayName(record)}...`, "warn");
   await window.AgencyDataStore.updateSubmissionStatus(record, status, state.activeAgencyId);
   await refreshLocalSnapshotStatus();
-  const refreshed = currentIntakeRecords().find((item) => item.remoteId === record.remoteId || item.id === record.id);
-  state.activeSubmissionId = refreshed?.id || state.activeSubmissionId;
+  const refreshed = currentIntakeRecords(type).find((item) => item.remoteId === record.remoteId || item.id === record.id);
+  state.activeSubmissionIds[type] = refreshed?.id || state.activeSubmissionIds[type];
   renderIntakeSubmissions();
   updateDataStatus(`Submission moved to ${status.replace(/_/g, " ")}`, "good");
 }
@@ -923,7 +1043,7 @@ function renderPermitListScreen() {
       <span>${permit.facilityName}</span>
       <span>${permit.address}</span>
       <span>${permit.program} · ${permit.permitType}</span>
-      <span>Risk ${permit.risk} · ${permit.assignedTo}</span>
+      <span>Risk ${permit.risk} · assigned to ${permit.assignedTo}</span>
     </button>
   `).join("") : `
     <article class="empty-state">
@@ -947,20 +1067,192 @@ function renderPermitListScreen() {
       <p>${permit.address}</p>
       <p>${permit.program} · ${permit.permitType}</p>
       <p>Risk ${permit.risk} · inspection frequency ${permit.inspectionFrequency}</p>
-      <p>${permit.phone} · assigned to ${permit.assignedTo}</p>
+      <p>${permit.phone} · ${permit.email || "no email on file"}</p>
+      <p>Assigned to ${permit.assignedTo}</p>
       <p>Last inspection: ${permit.lastInspection}</p>
       <p>Next inspection: ${permit.nextInspection}</p>
     </div>
     <div class="record-actions">
-      <button class="primary-button" type="button">Schedule inspection</button>
-      <button class="secondary-button" type="button">Create complaint</button>
-      <button class="ghost-button" type="button">Open facility history</button>
+      <button class="ghost-button" type="button" data-permit-action="history">Open facility history</button>
+      <button class="primary-button" type="button" data-permit-action="inspection">Perform inspection</button>
+      <button class="secondary-button" type="button" data-permit-action="complaint">New complaint</button>
+      <button class="ghost-button" type="button" data-permit-action="email">Email facility contact</button>
     </div>
   ` : `
     <p class="eyebrow">Permit record</p>
     <h3>Select a permit</h3>
     <p>Open a permit to see facility details, linked address data, and related actions.</p>
   `;
+  permitDetailPanel.querySelectorAll("[data-permit-action]").forEach((button) => {
+    button.addEventListener("click", () => handlePermitAction(button.dataset.permitAction, permit));
+  });
+}
+
+function openActionModal({ eyebrow, title, body, footer = "" }) {
+  const modal = document.createElement("div");
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <section class="field-modal action-modal" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">${escapeHtml(eyebrow)}</p>
+          <h2>${escapeHtml(title)}</h2>
+        </div>
+        <button class="icon-button" type="button" data-close-action-modal aria-label="Close">x</button>
+      </div>
+      <div class="action-modal-body">${body}</div>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-action-modal>Close</button>
+        ${footer}
+      </div>
+    </section>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelectorAll("[data-close-action-modal]").forEach((button) => {
+    button.addEventListener("click", () => modal.remove());
+  });
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) modal.remove();
+  });
+  return modal;
+}
+
+function openFacilityHistory(permit) {
+  const rows = [
+    ["Permit number", permit.permitNumber],
+    ["Facility name", permit.facilityName],
+    ["Facility type", permit.permitType],
+    ["Program", permit.program],
+    ["Status", permit.status],
+    ["Address", permit.address],
+    ["Facility phone", permit.phone],
+    ["Facility email", permit.email],
+    ["Assigned to", permit.assignedTo],
+    ["Risk category", permit.risk],
+    ["Inspection frequency", permit.inspectionFrequency],
+    ["Last inspection", permit.lastInspection],
+    ["Next inspection", permit.nextInspection]
+  ];
+  openActionModal({
+    eyebrow: "Facility history",
+    title: permit.facilityName,
+    body: `
+      <div class="history-grid">
+        ${rows.map(([label, value]) => `
+          <div class="answer-row">
+            <strong>${escapeHtml(label)}</strong>
+            <span>${escapeHtml(value || "Not captured")}</span>
+          </div>
+        `).join("")}
+      </div>
+      <section class="linked-activity">
+        <h3>Linked activity</h3>
+        <article><span class="pill good">inspection</span><strong>${escapeHtml(permit.lastInspection)}</strong><p>Most recent inspection on record.</p></article>
+        <article><span class="pill warn">next step</span><strong>${escapeHtml(permit.nextInspection)}</strong><p>Upcoming or required inspection action.</p></article>
+      </section>
+    `
+  });
+}
+
+function openComplaintDraft(permit) {
+  const modal = openActionModal({
+    eyebrow: "New complaint",
+    title: `Complaint for ${permit.facilityName}`,
+    body: `
+      <form id="staffComplaintForm" class="modal-form inline-action-form">
+        <div class="modal-page">
+          <label>
+            Facility
+            <input name="facility" value="${escapeHtml(permit.facilityName)}" readonly />
+          </label>
+          <label>
+            Linked permit
+            <input name="permitNumber" value="${escapeHtml(permit.permitNumber)}" readonly />
+          </label>
+          <label>
+            Complaint type
+            <select name="complaintType" required>
+              <option value="">Choose type</option>
+              <option>Foodborne illness</option>
+              <option>Sanitation</option>
+              <option>No permit visible</option>
+              <option>Pool water quality</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <label>
+            Complainant email
+            <input name="complainantEmail" type="email" placeholder="Optional" />
+          </label>
+          <label class="wide">
+            Complaint details
+            <textarea name="details" rows="5" required placeholder="Enter complaint details"></textarea>
+          </label>
+        </div>
+      </form>
+    `,
+    footer: `<button class="primary-button" type="submit" form="staffComplaintForm">Save complaint</button>`
+  });
+  modal.querySelector("#staffComplaintForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const answers = {
+      "hs.ComplaintCodeLegacy": `CPT-${Date.now().toString().slice(-6)}`,
+      "hs.complaint_typeID": data.get("complaintType"),
+      "hs.complaintDetails": data.get("details"),
+      "hs.ComplainantEmail": data.get("complainantEmail"),
+      "permit.number": permit.permitNumber,
+      "facility.name": permit.facilityName,
+      "facility.address": permit.address
+    };
+    const complaintForm = state.forms.find((form) => form.id === "union-complaint-manager") || state.forms.find((form) => form.id === "complaint-intake") || activeForm();
+    await window.AgencyDataStore.saveTestSubmission({ ...complaintForm, title: complaintForm.title || "Complaint intake" }, answers, state.activeAgencyId);
+    await refreshLocalSnapshotStatus();
+    modal.remove();
+    setView("complaints");
+    updateDataStatus(`Saved complaint for ${permit.facilityName}`, "good");
+  });
+}
+
+function openEmailComposer(permit) {
+  const contacts = permit.contacts?.length ? permit.contacts : [{ name: "Facility contact", role: "Primary", email: permit.email || "", phone: permit.phone }];
+  openActionModal({
+    eyebrow: "Email facility contact",
+    title: permit.facilityName,
+    body: `
+      <form class="modal-form inline-action-form">
+        <div class="modal-page">
+          <label>
+            Contact
+            <select>
+              ${contacts.map((contact) => `<option>${escapeHtml(contact.name)} · ${escapeHtml(contact.role)} · ${escapeHtml(contact.email || "no email")}</option>`).join("")}
+            </select>
+          </label>
+          <label>
+            Subject
+            <input value="${escapeHtml(`Permit ${permit.permitNumber} follow-up`)}" />
+          </label>
+          <label class="wide">
+            Message
+            <textarea rows="6">Hello, we are following up regarding ${escapeHtml(permit.facilityName)} and permit ${escapeHtml(permit.permitNumber)}.</textarea>
+          </label>
+        </div>
+      </form>
+      <p class="muted">This creates the staff email workflow shell. A production send will connect to the agency email service after identity and mail settings are configured.</p>
+    `,
+    footer: `<button class="primary-button" type="button" data-close-action-modal>Save message draft</button>`
+  });
+}
+
+function handlePermitAction(action, permit) {
+  if (!permit) return;
+  if (action === "history") openFacilityHistory(permit);
+  if (action === "inspection") {
+    setView("inspections");
+    updateDataStatus(`Opened inspection module for ${permit.facilityName}`, "good");
+  }
+  if (action === "complaint") openComplaintDraft(permit);
+  if (action === "email") openEmailComposer(permit);
 }
 
 function renderTemplates() {
@@ -2088,6 +2380,7 @@ navButtons.forEach((button) => {
 });
 
 permitSearchInput?.addEventListener("input", renderPermitListScreen);
+permitFacilityTypeFilter?.addEventListener("change", renderPermitListScreen);
 permitStatusFilter?.addEventListener("change", renderPermitListScreen);
 
 studioTabs.forEach((button) => {
@@ -2144,6 +2437,7 @@ hydrateAccessModeFromUrl();
 await loadPersistedState();
 renderModules();
 renderTimeline();
+renderFacilityTypeFilter();
 renderIntakeSubmissions();
 renderPermitListScreen();
 renderTemplates();
