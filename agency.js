@@ -519,7 +519,7 @@ function setAiMode(mode) {
   state.activeAiMode = mode;
   aiModeButtons.forEach((button) => button.classList.toggle("active", button.dataset.aiMode === mode));
   aiInputPanels.forEach((panel) => {
-    const isCurrentInput = panel.dataset.aiInput === mode;
+    const isCurrentInput = panel.dataset.aiInput === mode || (panel.dataset.aiInput === "scan" && mode === "hs-template");
     panel.classList.toggle("is-muted", !isCurrentInput);
   });
 }
@@ -770,6 +770,177 @@ function inferSection(label, currentSection) {
   return currentSection || "Application";
 }
 
+function detectDelimitedRows(text) {
+  const trimmed = text.replace(/^\uFEFF/, "").trim();
+  if (!trimmed) return { headers: [], rows: [], delimiter: "\t" };
+  const lines = trimmed.split(/\r?\n/).filter((line) => line.trim());
+  const firstLine = lines[0] || "";
+  const delimiter = firstLine.includes("\t") ? "\t" : ",";
+  const parseLine = (line) => {
+    const values = [];
+    let current = "";
+    let quoted = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      const next = line[index + 1];
+      if (char === "\"" && quoted && next === "\"") {
+        current += "\"";
+        index += 1;
+      } else if (char === "\"") {
+        quoted = !quoted;
+      } else if (char === delimiter && !quoted) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim());
+    return values;
+  };
+  const headers = parseLine(lines[0]).map((header) => header.replace(/^\uFEFF/, "").trim());
+  const rows = lines.slice(1).map((line) => {
+    const values = parseLine(line);
+    return headers.reduce((row, header, index) => {
+      row[header] = values[index] || "";
+      return row;
+    }, {});
+  });
+  return { headers, rows, delimiter };
+}
+
+function isHsTemplateFlatfile(text) {
+  const { headers } = detectDelimitedRows(text);
+  const headerSet = new Set(headers.map((header) => header.toLowerCase()));
+  return ["type", "required", "label", "field id"].every((header) => headerSet.has(header));
+}
+
+function mapHsFieldType(type, label, options) {
+  const normalizedType = type.toLowerCase();
+  const normalizedLabel = label.toLowerCase();
+  if (normalizedType.includes("email")) return "Email";
+  if (normalizedType.includes("phone")) return "Phone";
+  if (normalizedType.includes("textarea")) return "Long text";
+  if (normalizedType.includes("signature")) return "Signature";
+  if (normalizedType.includes("number")) return "Number";
+  if (normalizedType.includes("date")) return "Date";
+  if (normalizedType.includes("checkbox")) return "Checkbox";
+  if (normalizedType.includes("drop down") || normalizedType.includes("assigned") || normalizedType.includes("embedded form search")) {
+    return options.trim() ? "Select" : "Text";
+  }
+  if (normalizedType.includes("information box")) return "Long text";
+  if (normalizedType.includes("reload")) return options.trim() ? "Select" : "Text";
+  if (normalizedLabel.includes("address")) return "Address";
+  return "Text";
+}
+
+function mapHsFieldSection(label, group, type) {
+  const source = `${group} ${label} ${type}`.toLowerCase();
+  if (source.includes("inspection")) return "Inspection";
+  if (source.includes("permit") || source.includes("construction") || source.includes("plan review")) return "Permit";
+  if (source.includes("fee") || source.includes("payment") || source.includes("billing")) return "Billing";
+  if (source.includes("complaint")) return "Complaints";
+  if (source.includes("assigned") || source.includes("status") || source.includes("review")) return "Internal review";
+  return "Application";
+}
+
+function normalizeHsOptions(options) {
+  return options
+    .split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+    .map((option) => option.replace(/^"|"$/g, "").trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+function hsConditionalRule(row) {
+  const rules = [];
+  if (row["Show On"]?.trim()) rules.push(`Show on: ${row["Show On"].trim()}`);
+  if (row["Hide On"]?.trim()) rules.push(`Hide on: ${row["Hide On"].trim()}`);
+  if (row["Use On List Screen"]?.toLowerCase() === "true") rules.push("Use on list screen");
+  if (row["Filter On List Screen"]?.toLowerCase() === "true") rules.push("Filter on list screen");
+  return rules.join("; ");
+}
+
+function fieldFromHsRow(row, index) {
+  const label = row.Label?.trim() || row["Field ID"]?.trim() || `Imported field ${index + 1}`;
+  const fieldId = row["Field ID"]?.trim() || slugify(label);
+  const type = mapHsFieldType(row.Type || "", label, row.Options || "");
+  const group = row["Field Group"]?.trim();
+  const section = mapHsFieldSection(label, group || "", row.Type || "");
+  const notes = [
+    group ? `HS group: ${group}` : "",
+    fieldId ? `HS variable: ${fieldId}` : "",
+    row["Config Notes"]?.trim() ? `Notes: ${row["Config Notes"].trim()}` : "",
+    row.Type?.trim() ? `Original HS type: ${row.Type.trim()}` : ""
+  ].filter(Boolean);
+  return {
+    id: `${slugify(fieldId)}-${Date.now()}-${index}`,
+    label,
+    key: `hs.${fieldId.replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || slugify(label)}`,
+    type,
+    section,
+    required: row.Required?.toLowerCase() === "true" ? "true" : "false",
+    visibility: section === "Internal review" ? "Staff only" : "Public and staff",
+    editRole: section === "Internal review" ? "Agency admin" : "Intake staff",
+    helpText: notes.join(" | ") || "Imported from HealthSpace field export. Admin should review before publishing.",
+    placeholder: row["Config Notes"]?.trim() || "",
+    validation: type === "Email" ? "email" : type === "Phone" ? "phone" : "",
+    options: normalizeHsOptions(row.Options || ""),
+    conditionalRule: hsConditionalRule(row),
+    defaultValue: "",
+    width: type === "Long text" || type === "Document upload" || type === "Signature" ? "Full" : "Half",
+    position: "Next available",
+    publicLabel: label,
+    staffLabel: label,
+    recordMap: section === "Billing" ? "Invoice" : section === "Complaints" ? "Complaint" : ["Permit", "Inspection", "Application"].includes(section) ? section : "Application",
+    reportOutput: section === "Billing" ? "Invoice" : section === "Inspection" ? "Inspection report" : "Application summary",
+    auditLevel: row.Required?.toLowerCase() === "true" || section === "Internal review" ? "High" : "Standard",
+    sourceLink: "Agency SOP"
+  };
+}
+
+function fieldsFromHsTemplateFlatfile(text) {
+  const parsed = detectDelimitedRows(text);
+  const requiredHeaders = ["Type", "Required", "Label", "Field ID"];
+  const missingHeaders = requiredHeaders.filter((header) => !parsed.headers.includes(header));
+  if (missingHeaders.length) {
+    return {
+      fields: [],
+      findings: [["HS flatfile not recognized", `Missing required column(s): ${missingHeaders.join(", ")}.`]]
+    };
+  }
+  const skippedRows = [];
+  const reviewRows = [];
+  const fields = parsed.rows.flatMap((row, index) => {
+    const type = row.Type?.trim() || "";
+    if (!row.Label?.trim() && !row["Field ID"]?.trim()) {
+      skippedRows.push(`Row ${index + 2}: blank field`);
+      return [];
+    }
+    if (type.toLowerCase() === "spacer") {
+      skippedRows.push(`${row.Label || row["Field ID"]}: layout spacer`);
+      return [];
+    }
+    if (["information box", "reload - child fields", "embedded form search"].includes(type.toLowerCase())) {
+      reviewRows.push(`${row.Label}: ${type}`);
+    }
+    return [fieldFromHsRow(row, index)];
+  });
+  const requiredCount = fields.filter((field) => field.required === "true").length;
+  const optionCount = fields.filter((field) => field.options).length;
+  return {
+    fields,
+    findings: [
+      ["HS flatfile import", `Read ${parsed.rows.length} rows and proposed ${fields.length} configurable fields from ${parsed.delimiter === "\t" ? "tab-delimited" : "comma-delimited"} source data.`],
+      ["Attributes preserved", `Imported labels, variable IDs, field types, required flags, option lists, groups, list-screen flags, show/hide rules, and config notes when present.`],
+      ["Required and option fields", `${requiredCount} fields are marked required and ${optionCount} fields include option lists.`],
+      ...(skippedRows.length ? [["Layout rows skipped", skippedRows.join("; ")]] : []),
+      ...(reviewRows.length ? [["Admin review items", `${reviewRows.length} platform-specific fields were imported but should be checked: ${reviewRows.slice(0, 12).join("; ")}${reviewRows.length > 12 ? "..." : ""}`]] : []),
+      ["Reliability boundary", "This is much more reliable than PDF extraction for fields included in the export, but it cannot infer attributes not present in the flatfile, such as exact page layout, external lookup behavior, legal rules, or advanced validation."]
+    ]
+  };
+}
+
 function isLikelySection(line) {
   const cleaned = line.trim();
   return cleaned.length > 3
@@ -889,7 +1060,7 @@ async function readUploadedFormText() {
   const file = aiSourceFile.files?.[0];
   if (!file) return { text: "", source: "instructions", warning: "No file uploaded." };
   const extension = file.name.split(".").pop().toLowerCase();
-  if (["txt", "csv"].includes(extension)) {
+  if (["txt", "csv", "tsv"].includes(extension)) {
     return { text: await file.text(), source: file.name, warning: "" };
   }
   if (extension === "pdf") {
@@ -930,8 +1101,33 @@ async function generateDraftFields() {
     };
   }
 
-  const uploaded = state.activeAiMode === "scan" ? await readUploadedFormText() : { text: "", source: "instructions", warning: "" };
+  const uploaded = ["scan", "hs-template"].includes(state.activeAiMode) ? await readUploadedFormText() : { text: "", source: "instructions", warning: "" };
   const sourceText = `${uploaded.text}\n${aiInstructions.value || ""}`.trim();
+  if (state.activeAiMode === "hs-template" || isHsTemplateFlatfile(sourceText)) {
+    const hsDraft = fieldsFromHsTemplateFlatfile(sourceText);
+    const hsWarnings = uploaded.warning && !(uploaded.warning === "No file uploaded." && aiInstructions.value.trim())
+      ? [["Extraction warning", uploaded.warning]]
+      : [];
+    if (hsDraft.fields.length) {
+      return {
+        fields: hsDraft.fields,
+        source: uploaded.text.trim() ? uploaded.source : "HS flatfile text",
+        findings: [
+          ...hsWarnings,
+          ...hsDraft.findings
+        ]
+      };
+    }
+    return {
+      fields: [],
+      source: uploaded.text.trim() ? uploaded.source : "HS flatfile text",
+      findings: [
+        ...hsWarnings,
+        ...hsDraft.findings,
+        ["No fields created", "Upload or paste a HealthSpace field export with Type, Required, Label, and Field ID columns."]
+      ]
+    };
+  }
   const extracted = fieldsFromExtractedText(sourceText);
 
   if (extracted.fields.length) {
@@ -1020,7 +1216,8 @@ async function createAiDraft() {
   const modeTitle = {
     scan: "AI draft from uploaded form",
     instructions: "AI draft from written instructions",
-    agency: `AI draft from ${partner.agency}`
+    agency: `AI draft from ${partner.agency}`,
+    "hs-template": "AI draft from HS template"
   }[state.activeAiMode];
   generateAiDraft.disabled = true;
   generateAiDraft.textContent = "Reading form...";
