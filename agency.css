@@ -180,6 +180,64 @@ button {
   margin-bottom: 18px;
 }
 
+.environment-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(240px, 340px) minmax(260px, 360px);
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+  box-shadow: 0 10px 24px #2b251c10;
+}
+
+.environment-bar strong,
+.environment-bar span {
+  display: block;
+}
+
+.environment-bar span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.environment-bar label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 820;
+}
+
+.environment-bar select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.add-agency-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.add-agency-control input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: var(--paper);
+}
+
 .eyebrow {
   margin: 0 0 4px;
   text-transform: uppercase;
@@ -1070,7 +1128,8 @@ h2 {
   .module-card,
   .config-layout,
   .builder-layout,
-  .ai-layout {
+  .ai-layout,
+  .environment-bar {
     min-width: 0;
     max-width: 100%;
   }
@@ -1099,6 +1158,15 @@ h2 {
   }
 
   .studio-readiness {
+    grid-template-columns: 1fr;
+  }
+
+  .environment-bar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .add-agency-control {
     grid-template-columns: 1fr;
   }
 
