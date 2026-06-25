@@ -21,6 +21,7 @@
         <nav class="nav-group" aria-label="Agency modules">
           <button class="nav-button active" type="button" data-view="command">Command Center <span class="badge good">live</span></button>
           <button class="nav-button" type="button" data-view="configuration">Setup Studio <span class="badge alert">admin only</span></button>
+          <button class="nav-button" type="button" data-view="public">Public Portal <span class="badge">citizen</span></button>
           <button class="nav-button" type="button" data-view="inspections">Inspections <span class="badge good">InspectAid</span></button>
         </nav>
 
@@ -53,6 +54,15 @@
             <strong id="activeAgencyName">Mecklenburg County NC</strong>
             <span id="activeAgencyUrl">/mecklenburg-county-nc</span>
           </div>
+          <label>
+            Access lane
+            <select id="accessModeSelector">
+              <option value="admin">Admin/config</option>
+              <option value="staff">Health department staff</option>
+              <option value="inspector">Inspector</option>
+              <option value="public">Public portal</option>
+            </select>
+          </label>
           <label>
             Company admin agency switcher
             <select id="agencySelector"></select>
@@ -97,6 +107,40 @@
               <div id="timelineList" class="queue"></div>
             </section>
           </div>
+
+          <section class="panel permit-directory">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Permit list screen</p>
+                <h2>Search permits, open the record, then act from the facility context</h2>
+              </div>
+              <span class="pill good">staff workspace</span>
+            </div>
+            <div class="list-toolbar">
+              <label>
+                Search permits
+                <input id="permitSearchInput" type="search" placeholder="Permit number, facility, address, status, risk" />
+              </label>
+              <label>
+                Status
+                <select id="permitStatusFilter">
+                  <option value="">All statuses</option>
+                  <option>Active</option>
+                  <option>Pending</option>
+                  <option>Suspended</option>
+                  <option>Closed</option>
+                </select>
+              </label>
+            </div>
+            <div class="record-workspace">
+              <div class="record-list" id="permitListScreen" aria-live="polite"></div>
+              <aside class="record-detail" id="permitDetailPanel">
+                <p class="eyebrow">Permit record</p>
+                <h3>Select a permit</h3>
+                <p>Open a permit to see facility details, linked address data, and related actions.</p>
+              </aside>
+            </div>
+          </section>
         </section>
 
         <section id="view-configuration" class="hidden">
@@ -356,6 +400,34 @@
           </section>
         </section>
 
+        <section id="view-public" class="hidden">
+          <section class="public-shell">
+            <div class="public-hero">
+              <p class="eyebrow">Public portal</p>
+              <h2 id="publicPortalTitle">Submit an application or complaint</h2>
+              <p id="publicPortalCopy">Citizen-facing intake for published agency forms. Admin setup, staff queues, and inspection tools stay hidden from public users.</p>
+              <a id="publicPortalLink" class="primary-button" href="./public.html?agency=union-county-nc">Open public portal</a>
+            </div>
+            <div class="public-actions">
+              <article class="portal-card">
+                <span class="pill good">application</span>
+                <strong>New permit application</strong>
+                <p>Public applicants submit approved forms, contact information, address details, and uploads.</p>
+              </article>
+              <article class="portal-card">
+                <span class="pill warn">complaint</span>
+                <strong>Complaint intake</strong>
+                <p>Residents submit complaint details without seeing staff-only fields, workflows, or configuration tools.</p>
+              </article>
+              <article class="portal-card">
+                <span class="pill">status</span>
+                <strong>Status lookup</strong>
+                <p>Future phase: applicants can check status with a secure submission reference.</p>
+              </article>
+            </div>
+          </section>
+        </section>
+
         <section id="view-inspections" class="hidden">
           <section class="panel">
             <div class="panel-head">
@@ -589,8 +661,10 @@
       </section>
     </div>
 
-    <script defer src="./agency-data.js?v=union-hs-1"></script>
+    <script defer src="./agency-config.js?v=supabase-foundation-1"></script>
+    <script defer src="./agency-supabase.js?v=supabase-foundation-1"></script>
+    <script defer src="./agency-data.js?v=supabase-foundation-1"></script>
     <script defer src="./agency-seeds.js?v=union-hs-1"></script>
-    <script defer src="./agency.js?v=template-click-2"></script>
+    <script defer src="./agency.js?v=supabase-foundation-1"></script>
   </body>
 </html>
