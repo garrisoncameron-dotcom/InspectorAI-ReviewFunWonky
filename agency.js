@@ -18,6 +18,7 @@ const state = {
   aiDraft: null,
   dataStatus: "loading",
   activePermitId: "union-fs-1842",
+  activeSubmissionId: null,
   savedAt: null,
   syncEvents: [],
   testRecords: [],
@@ -380,6 +381,7 @@ const permitListScreen = document.querySelector("#permitListScreen");
 const permitDetailPanel = document.querySelector("#permitDetailPanel");
 const intakeSubmissionList = document.querySelector("#intakeSubmissionList");
 const intakeRecordCount = document.querySelector("#intakeRecordCount");
+const intakeDetailPanel = document.querySelector("#intakeDetailPanel");
 const templateList = document.querySelector("#templateList");
 const blueprintList = document.querySelector("#blueprintList");
 const fieldList = document.querySelector("#fieldList");
@@ -788,31 +790,98 @@ function submissionMeta(record) {
   ].filter(Boolean).join(" · ");
 }
 
-function renderIntakeSubmissions() {
-  if (!intakeSubmissionList || !intakeRecordCount) return;
-  const records = [...(state.testRecords || [])]
+function submissionTone(status) {
+  if (["approved", "synced"].includes(status)) return "good";
+  if (["archived", "denied"].includes(status)) return "alert";
+  return "warn";
+}
+
+function currentIntakeRecords() {
+  return [...(state.testRecords || [])]
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
     .slice(0, 8);
+}
+
+function formatSubmittedAt(value) {
+  return value ? new Date(value).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }) : "No timestamp";
+}
+
+function answerEntries(record) {
+  return Object.entries(record.answers || {})
+    .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== "")
+    .slice(0, 24);
+}
+
+function renderIntakeDetail(record) {
+  if (!intakeDetailPanel) return;
+  if (!record) {
+    intakeDetailPanel.innerHTML = `
+      <p class="eyebrow">Submission detail</p>
+      <h3>Select an intake record</h3>
+      <p>Review submitted answers, then move the application or complaint through staff triage.</p>
+    `;
+    return;
+  }
+  const entries = answerEntries(record);
+  intakeDetailPanel.innerHTML = `
+    <p class="eyebrow">Submission detail</p>
+    <h3>${escapeHtml(submissionDisplayName(record))}</h3>
+    <div class="detail-grid">
+      <span class="pill ${submissionTone(record.status)}">${escapeHtml(record.status || "submitted")}</span>
+      <strong>${escapeHtml(record.formTitle || record.formId || "Public submission")}</strong>
+      <p>${escapeHtml(record.type || "application")} · ${escapeHtml(record.source || "public")}</p>
+      <p>${escapeHtml(formatSubmittedAt(record.createdAt))}</p>
+    </div>
+    <div class="record-actions" aria-label="Submission review actions">
+      <button class="secondary-button" type="button" data-submission-status="in_review">Mark in review</button>
+      <button class="ghost-button" type="button" data-submission-status="correction_requested">Request correction</button>
+      <button class="primary-button" type="button" data-submission-status="approved">Approve</button>
+      <button class="ghost-button" type="button" data-submission-status="archived">Archive</button>
+    </div>
+    <div class="answer-list">
+      ${entries.length ? entries.map(([key, value]) => `
+        <div class="answer-row">
+          <strong>${escapeHtml(key)}</strong>
+          <span>${escapeHtml(Array.isArray(value) ? value.join(", ") : typeof value === "object" ? JSON.stringify(value) : value)}</span>
+        </div>
+      `).join("") : `
+        <div class="answer-row">
+          <strong>No answers captured</strong>
+          <span>This submission did not include field values.</span>
+        </div>
+      `}
+    </div>
+  `;
+  intakeDetailPanel.querySelectorAll("[data-submission-status]").forEach((button) => {
+    button.addEventListener("click", () => updateActiveSubmissionStatus(button.dataset.submissionStatus));
+  });
+}
+
+function renderIntakeSubmissions() {
+  if (!intakeSubmissionList || !intakeRecordCount) return;
+  const records = currentIntakeRecords();
+  if (!records.some((record) => record.id === state.activeSubmissionId)) {
+    state.activeSubmissionId = records[0]?.id || null;
+  }
   intakeRecordCount.textContent = `${records.length} ${records.length === 1 ? "record" : "records"}`;
   intakeSubmissionList.innerHTML = records.length ? records.map((record) => {
-    const created = record.createdAt ? new Date(record.createdAt).toLocaleString([], {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit"
-    }) : "No timestamp";
-    const tone = record.syncStatus === "synced" ? "good" : "warn";
+    const tone = submissionTone(record.status || record.syncStatus);
     return `
-      <article class="intake-row">
-        <span class="pill ${tone}">${escapeHtml(record.syncStatus || record.status || "local")}</span>
+      <button class="intake-row ${record.id === state.activeSubmissionId ? "active" : ""}" type="button" data-submission-id="${escapeHtml(record.id)}">
+        <span class="pill ${tone}">${escapeHtml(record.status || record.syncStatus || "local")}</span>
         <div>
           <strong>${escapeHtml(submissionDisplayName(record))}</strong>
           <p>${escapeHtml(record.formTitle || record.formId || "Public submission")}</p>
           <small>${escapeHtml(submissionMeta(record) || "No contact details captured")}</small>
         </div>
         <span>${escapeHtml(record.type || "application")}</span>
-        <span>${escapeHtml(created)}</span>
-      </article>
+        <span>${escapeHtml(formatSubmittedAt(record.createdAt))}</span>
+      </button>
     `;
   }).join("") : `
     <article class="empty-state compact-empty">
@@ -820,6 +889,25 @@ function renderIntakeSubmissions() {
       <p>Submitted public applications and complaints will appear here after Supabase sync.</p>
     </article>
   `;
+  intakeSubmissionList.querySelectorAll("[data-submission-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.activeSubmissionId = button.dataset.submissionId;
+      renderIntakeSubmissions();
+    });
+  });
+  renderIntakeDetail(records.find((record) => record.id === state.activeSubmissionId));
+}
+
+async function updateActiveSubmissionStatus(status) {
+  const record = currentIntakeRecords().find((item) => item.id === state.activeSubmissionId);
+  if (!record || !window.AgencyDataStore) return;
+  updateDataStatus(`Updating ${submissionDisplayName(record)}...`, "warn");
+  await window.AgencyDataStore.updateSubmissionStatus(record, status, state.activeAgencyId);
+  await refreshLocalSnapshotStatus();
+  const refreshed = currentIntakeRecords().find((item) => item.remoteId === record.remoteId || item.id === record.id);
+  state.activeSubmissionId = refreshed?.id || state.activeSubmissionId;
+  renderIntakeSubmissions();
+  updateDataStatus(`Submission moved to ${status.replace(/_/g, " ")}`, "good");
 }
 
 function renderPermitListScreen() {
