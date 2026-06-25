@@ -1,0 +1,4 @@
+window.InspectAidSupabaseConfig = {
+  url: "",
+  anonKey: ""
+};
