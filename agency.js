@@ -1,4 +1,4 @@
-function bootAgencyOS() {
+async function bootAgencyOS() {
 const state = {
   activeView: "command",
   activeStudio: "templates",
@@ -8,6 +8,10 @@ const state = {
   activeModalTab: "general",
   activeAiMode: "scan",
   aiDraft: null,
+  dataStatus: "loading",
+  savedAt: null,
+  syncEvents: [],
+  testRecords: [],
   forms: [
     {
       id: "food-application",
@@ -309,6 +313,11 @@ const createBlankForm = document.querySelector("#createBlankForm");
 const newBlankForm = document.querySelector("#newBlankForm");
 const addFieldButton = document.querySelector("#addFieldButton");
 const previewFormButton = document.querySelector("#previewFormButton");
+const saveDraftButton = document.querySelector("#saveDraftButton");
+const publishFormButton = document.querySelector("#publishFormButton");
+const resetLocalDataButton = document.querySelector("#resetLocalDataButton");
+const dataStatusText = document.querySelector("#dataStatusText");
+const syncQueueStatus = document.querySelector("#syncQueueStatus");
 const fieldModal = document.querySelector("#fieldModal");
 const fieldModalForm = document.querySelector("#fieldModalForm");
 const fieldModalTitle = document.querySelector("#fieldModalTitle");
@@ -335,6 +344,84 @@ const aiDraftSummary = document.querySelector("#aiDraftSummary");
 const aiDraftStatus = document.querySelector("#aiDraftStatus");
 const openAiAssistSource = document.querySelector("#openAiAssistSource");
 const aiInputPanels = [...document.querySelectorAll("[data-ai-input]")];
+
+function cloneForms(forms) {
+  return JSON.parse(JSON.stringify(forms));
+}
+
+function snapshotConfiguration() {
+  return {
+    activeFormId: state.activeFormId,
+    forms: cloneForms(state.forms),
+    template: state.activeTemplate
+  };
+}
+
+function statusTone(status) {
+  if (status === "published" || status === "template" || status === "template copy") return "good";
+  if (status === "AI draft" || status === "admin draft" || status === "unsaved draft") return "warn";
+  return "";
+}
+
+function updateDataStatus(message = null, tone = null) {
+  const pending = state.syncEvents.filter((event) => event.status === "pending").length;
+  const savedText = state.savedAt ? `Saved ${new Date(state.savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not saved yet";
+  dataStatusText.textContent = message || `${savedText} in offline cache`;
+  dataStatusText.className = `pill ${tone || (state.dataStatus === "saved" ? "good" : "warn")}`;
+  syncQueueStatus.textContent = `${pending} pending sync ${pending === 1 ? "event" : "events"}`;
+}
+
+function markDirty() {
+  state.dataStatus = "dirty";
+  updateDataStatus("Unsaved local changes", "warn");
+}
+
+async function refreshLocalSnapshotStatus() {
+  if (!window.AgencyDataStore) return;
+  const snapshot = await window.AgencyDataStore.loadSnapshot();
+  state.syncEvents = snapshot.syncEvents || [];
+  state.testRecords = snapshot.records || [];
+  updateDataStatus();
+}
+
+async function loadPersistedState() {
+  if (!window.AgencyDataStore) {
+    state.dataStatus = "memory only";
+    updateDataStatus("Offline cache unavailable", "warn");
+    return;
+  }
+  const snapshot = await window.AgencyDataStore.loadSnapshot();
+  if (snapshot.appState?.forms?.length) {
+    state.forms = snapshot.appState.forms;
+    state.activeFormId = snapshot.appState.activeFormId || state.forms[0]?.id || state.activeFormId;
+    state.activeTemplate = snapshot.appState.template || state.activeTemplate;
+    state.savedAt = snapshot.appState.savedAt || null;
+    state.dataStatus = "saved";
+  } else {
+    state.dataStatus = "seed";
+  }
+  state.syncEvents = snapshot.syncEvents || [];
+  state.testRecords = snapshot.records || [];
+}
+
+async function saveConfiguration(message = "Saved full form schema") {
+  if (!window.AgencyDataStore) return;
+  const saved = await window.AgencyDataStore.saveAppState(snapshotConfiguration());
+  state.savedAt = saved.savedAt;
+  state.dataStatus = "saved";
+  await refreshLocalSnapshotStatus();
+  updateDataStatus(message, "good");
+}
+
+async function publishActiveForm() {
+  const form = activeForm();
+  form.status = "published";
+  form.publishedAt = new Date().toISOString();
+  form.version = (form.version || 0) + 1;
+  form.source = form.source || "Agency-owned form";
+  await saveConfiguration(`Published ${form.fields.length} field form`);
+  renderFormBuilder();
+}
 
 function setView(view) {
   state.activeView = view;
@@ -447,6 +534,7 @@ function createBlankFormRecord() {
   };
   state.forms.push(form);
   state.activeFormId = form.id;
+  markDirty();
   renderFormBuilder();
   setStudio("fields");
 }
@@ -463,6 +551,7 @@ function cloneTemplateForm() {
   };
   state.forms.push(clone);
   state.activeFormId = clone.id;
+  markDirty();
   renderFormBuilder();
   setStudio("fields");
 }
@@ -470,7 +559,7 @@ function cloneTemplateForm() {
 function renderFormList() {
   formList.innerHTML = state.forms.map((form) => `
     <button class="form-card ${form.id === state.activeFormId ? "active" : ""}" type="button" data-form-id="${form.id}">
-      <span class="pill ${form.status === "blank" ? "" : "good"}">${form.status}</span>
+      <span class="pill ${statusTone(form.status)}">${form.status}</span>
       <strong>${form.title}</strong>
       <p>${form.fields.length} fields · ${form.source}</p>
     </button>
@@ -488,9 +577,11 @@ function renderFields() {
   const form = activeForm();
   activeFormTitle.textContent = form.title;
   activeFormMeta.innerHTML = `
-    <span class="pill ${form.status === "blank" ? "" : "good"}">${form.status}</span>
+    <span class="pill ${statusTone(form.status)}">${form.status}</span>
     <span class="pill">${form.fields.length} fields</span>
+    <span class="pill">v${form.version || 0}</span>
     <span class="pill">${form.source}</span>
+    ${form.publishedAt ? `<span class="pill good">published ${new Date(form.publishedAt).toLocaleDateString()}</span>` : ""}
   `;
 
   fieldList.innerHTML = form.fields.length ? form.fields.map((field) => `
@@ -669,6 +760,7 @@ function sendDraftToBuilder() {
   state.forms.push(form);
   state.activeFormId = form.id;
   state.aiDraft.sent = true;
+  markDirty();
   renderAiDraft();
   renderFormBuilder();
   setStudio("fields");
@@ -768,6 +860,8 @@ function saveField(event) {
   } else {
     form.fields.push(field);
   }
+  form.status = form.status === "published" ? "admin draft" : form.status;
+  markDirty();
   closeModal();
   renderFormBuilder();
 }
@@ -782,14 +876,140 @@ function duplicateField(fieldId) {
     label: `${field.label} copy`,
     key: `${field.key || keyify(field.label, field.section)}_copy`
   });
+  form.status = form.status === "published" ? "admin draft" : form.status;
+  markDirty();
   renderFormBuilder();
 }
 
 function deleteField(fieldId = state.editingFieldId) {
   const form = activeForm();
   form.fields = form.fields.filter((field) => field.id !== fieldId);
+  form.status = form.status === "published" ? "admin draft" : form.status;
+  markDirty();
   closeModal();
   renderFormBuilder();
+}
+
+function groupedFields(form) {
+  return form.fields.reduce((groups, field) => {
+    const section = field.section || "General";
+    if (!groups[section]) groups[section] = [];
+    groups[section].push(field);
+    return groups;
+  }, {});
+}
+
+function inputForField(field) {
+  const name = field.key || field.id;
+  const required = field.required === "true" ? "required" : "";
+  const placeholder = field.placeholder || field.helpText || "";
+  if (field.type === "Long text") {
+    return `<textarea name="${name}" rows="4" ${required} placeholder="${placeholder}"></textarea>`;
+  }
+  if (field.type === "Select" || field.type === "Multi-select") {
+    const options = (field.options || "Option A\nOption B").split("\n").filter(Boolean);
+    const multiple = field.type === "Multi-select" ? "multiple" : "";
+    return `
+      <select name="${name}" ${required} ${multiple}>
+        <option value="">Choose</option>
+        ${options.map((option) => `<option>${option}</option>`).join("")}
+      </select>
+    `;
+  }
+  if (field.type === "Checkbox") {
+    return `<label class="inline-check"><input name="${name}" type="checkbox" value="Yes" /> Yes</label>`;
+  }
+  if (field.type === "Date") {
+    return `<input name="${name}" type="date" ${required} />`;
+  }
+  if (field.type === "Number") {
+    return `<input name="${name}" type="number" ${required} placeholder="${placeholder}" />`;
+  }
+  if (field.type === "Document upload") {
+    return `<input name="${name}" type="file" ${required} />`;
+  }
+  if (field.type === "Signature") {
+    return `<input name="${name}" type="text" ${required} placeholder="Typed signature for test submission" />`;
+  }
+  if (field.type === "Address") {
+    return `<input name="${name}" type="text" ${required} placeholder="${placeholder || "Street, city, state, ZIP"}" />`;
+  }
+  return `<input name="${name}" type="text" ${required} placeholder="${placeholder}" />`;
+}
+
+function openFullFormPreview() {
+  const form = activeForm();
+  const groups = groupedFields(form);
+  const preview = document.createElement("div");
+  preview.className = "modal-backdrop";
+  preview.id = "fullFormPreview";
+  preview.innerHTML = `
+    <section class="field-modal full-form-modal">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Full form test</p>
+          <h2>${form.title}</h2>
+          <p>${form.fields.length} fields across ${Object.keys(groups).length} sections. This preview renders the entire configured schema.</p>
+        </div>
+        <button class="icon-button" type="button" data-close-preview aria-label="Close preview">x</button>
+      </div>
+      <form id="fullFormPreviewForm" class="full-form-preview">
+        ${Object.entries(groups).map(([section, fields]) => `
+          <section class="preview-section">
+            <div class="preview-section-head">
+              <h3>${section}</h3>
+              <span class="pill">${fields.length} fields</span>
+            </div>
+            <div class="preview-field-grid">
+              ${fields.map((field) => `
+                <label class="preview-field ${field.width === "Full" ? "wide" : ""}">
+                  <span>${field.publicLabel || field.label}${field.required === "true" ? " *" : ""}</span>
+                  ${inputForField(field)}
+                  <small>${field.helpText || field.visibility || ""}</small>
+                </label>
+              `).join("")}
+            </div>
+          </section>
+        `).join("")}
+        <div class="modal-actions">
+          <button class="ghost-button" type="button" data-close-preview>Close</button>
+          <button class="primary-button" type="submit">Save full test submission</button>
+        </div>
+      </form>
+    </section>
+  `;
+  document.body.appendChild(preview);
+  preview.querySelectorAll("[data-close-preview]").forEach((button) => {
+    button.addEventListener("click", () => preview.remove());
+  });
+  preview.addEventListener("click", (event) => {
+    if (event.target === preview) preview.remove();
+  });
+  preview.querySelector("#fullFormPreviewForm").addEventListener("submit", submitFullFormPreview);
+}
+
+async function submitFullFormPreview(event) {
+  event.preventDefault();
+  const form = activeForm();
+  const data = new FormData(event.currentTarget);
+  const answers = {};
+  form.fields.forEach((field) => {
+    const key = field.key || field.id;
+    if (field.type === "Document upload") {
+      const file = data.get(key);
+      answers[key] = file?.name ? { fileName: file.name, localOnly: true } : null;
+    } else if (field.type === "Checkbox") {
+      answers[key] = data.get(key) || "No";
+    } else if (field.type === "Multi-select") {
+      answers[key] = data.getAll(key);
+    } else {
+      answers[key] = data.get(key) || "";
+    }
+  });
+  const record = await window.AgencyDataStore.saveTestSubmission(form, answers);
+  await refreshLocalSnapshotStatus();
+  document.querySelector("#fullFormPreview")?.remove();
+  updateDataStatus(`Saved full test submission ${record.id.slice(0, 18)}`, "good");
 }
 
 function renderWorkflow() {
@@ -881,14 +1101,19 @@ useTemplateForm.addEventListener("click", cloneTemplateForm);
 createBlankForm.addEventListener("click", createBlankFormRecord);
 newBlankForm.addEventListener("click", createBlankFormRecord);
 addFieldButton.addEventListener("click", () => openFieldModal());
-previewFormButton.addEventListener("click", () => {
-  const form = activeForm();
-  alert(`${form.title}\n${form.fields.length} configured fields\n\nPreview rendering comes next; this confirms the selected schema is ready.`);
+saveDraftButton.addEventListener("click", () => saveConfiguration());
+publishFormButton.addEventListener("click", publishActiveForm);
+resetLocalDataButton.addEventListener("click", async () => {
+  if (!window.confirm("Reset local test data and return to the starter forms?")) return;
+  await window.AgencyDataStore.clearAll();
+  window.location.reload();
 });
+previewFormButton.addEventListener("click", openFullFormPreview);
 
 document.querySelector("#openInspectionModule").addEventListener("click", () => setView("inspections"));
 document.querySelector("#configureAgency").addEventListener("click", () => setView("configuration"));
 
+await loadPersistedState();
 renderModules();
 renderTimeline();
 renderTemplates();
@@ -900,6 +1125,7 @@ renderSetupList(inspectionSetupList, inspectionSetup);
 renderSetupList(portalSetupList, portalSetup);
 renderRoles();
 renderAiDraft();
+updateDataStatus();
 setView("command");
 setStudio("templates");
 setAiMode("scan");
