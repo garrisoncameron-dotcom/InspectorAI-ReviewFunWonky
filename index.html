@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f4ee" />
     <title>InspectAid Agency OS</title>
-    <link rel="stylesheet" href="./agency.css?v=extract-1" />
+    <link rel="stylesheet" href="./agency.css?v=tenant-1" />
   </head>
   <body>
     <div class="agency-shell">
@@ -46,6 +46,25 @@
             <button id="openInspectionModule" class="primary-button" type="button">Open inspections</button>
           </div>
         </header>
+
+        <section class="environment-bar" aria-label="Agency environment">
+          <div>
+            <p class="eyebrow">Jurisdiction environment</p>
+            <strong id="activeAgencyName">Mecklenburg County NC</strong>
+            <span id="activeAgencyUrl">/mecklenburg-county-nc</span>
+          </div>
+          <label>
+            Company admin agency switcher
+            <select id="agencySelector"></select>
+          </label>
+          <div class="add-agency-control">
+            <label>
+              Add agency
+              <input id="newAgencyName" type="text" placeholder="Orange County NC" />
+            </label>
+            <button id="addAgencyButton" class="secondary-button" type="button">Create</button>
+          </div>
+        </section>
 
         <section id="view-command">
           <div class="metric-grid" aria-label="Agency workload">
@@ -561,7 +580,7 @@
       </section>
     </div>
 
-    <script defer src="./agency-data.js?v=extract-1"></script>
-    <script defer src="./agency.js?v=extract-1"></script>
+    <script defer src="./agency-data.js?v=tenant-1"></script>
+    <script defer src="./agency.js?v=tenant-1"></script>
   </body>
 </html>
