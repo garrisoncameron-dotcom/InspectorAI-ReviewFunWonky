@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f4ee" />
     <title>InspectAid Agency OS</title>
-    <link rel="stylesheet" href="./agency.css?v=builder-1" />
+    <link rel="stylesheet" href="./agency.css?v=ai-1" />
   </head>
   <body>
     <div class="agency-shell">
@@ -97,6 +97,7 @@
           <div class="studio-tabs" role="tablist" aria-label="Setup Studio sections">
             <button class="studio-tab active" type="button" data-studio="templates">Templates</button>
             <button class="studio-tab" type="button" data-studio="fields">Fields</button>
+            <button class="studio-tab" type="button" data-studio="ai">AI Assist</button>
             <button class="studio-tab" type="button" data-studio="workflow">Workflow</button>
             <button class="studio-tab" type="button" data-studio="fees">Fees</button>
             <button class="studio-tab" type="button" data-studio="inspections">Inspections</button>
@@ -142,6 +143,11 @@
                 </div>
 
                 <div class="source-actions">
+                  <button id="openAiAssistSource" class="module-card" type="button">
+                    <span class="pill warn">AI assist</span>
+                    <strong>Generate from instructions or another agency</strong>
+                    <p>Upload/scan a form, type instructions, or borrow a neighboring agency template for admin review.</p>
+                  </button>
                   <button id="useTemplateForm" class="module-card active" type="button">
                     <span class="pill good">template</span>
                     <strong>Food service application</strong>
@@ -174,6 +180,80 @@
                 </div>
                 <div id="activeFormMeta" class="builder-meta"></div>
                 <div id="fieldList" class="field-list field-canvas" aria-live="polite"></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="ai">
+            <div class="ai-layout">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">AI assisted form build</p>
+                    <h2>Create a draft from a scan, instructions, or another agency</h2>
+                  </div>
+                  <span class="pill alert">admin review required</span>
+                </div>
+
+                <div class="ai-mode-grid" role="group" aria-label="AI assist modes">
+                  <button class="ai-mode active" type="button" data-ai-mode="scan">
+                    <span class="pill">scan</span>
+                    <strong>Upload or scan form</strong>
+                    <p>PDF, photo, Word document, spreadsheet, or legacy inspection sheet.</p>
+                  </button>
+                  <button class="ai-mode" type="button" data-ai-mode="instructions">
+                    <span class="pill">prompt</span>
+                    <strong>Build from instructions</strong>
+                    <p>Describe the form and let AI propose sections, fields, rules, and mappings.</p>
+                  </button>
+                  <button class="ai-mode" type="button" data-ai-mode="agency">
+                    <span class="pill good">agency library</span>
+                    <strong>Borrow from another agency</strong>
+                    <p>Start from a live client template, then localize and approve it.</p>
+                  </button>
+                </div>
+
+                <div class="ai-input-grid">
+                  <label class="upload-target" data-ai-input="scan">
+                    Source file
+                    <input id="aiSourceFile" type="file" accept=".pdf,.doc,.docx,.xlsx,.csv,.png,.jpg,.jpeg,.txt" />
+                    <span id="aiFileName">Drop a form, scan, or worksheet</span>
+                  </label>
+
+                  <label data-ai-input="agency">
+                    Use another agency as a starting point
+                    <select id="agencyTemplateSelect">
+                      <option value="union-food">Union County NC - Food service application</option>
+                      <option value="union-pool">Union County NC - Public pool permit</option>
+                      <option value="wake-lodging">Wake County NC - Lodging complaint intake</option>
+                      <option value="gwinnett-mobile">Gwinnett County GA - Mobile food unit</option>
+                    </select>
+                  </label>
+
+                  <label class="wide">
+                    Admin instructions
+                    <textarea id="aiInstructions" rows="7">We are Mecklenburg County NC. Use the same food and pool rules and requirements as Union County, but make all internal review fields staff-only. Add a required owner signature and document upload for floor plan. Generate a draft form for admin review.</textarea>
+                  </label>
+                </div>
+
+                <div class="button-row ai-actions">
+                  <button id="generateAiDraft" class="primary-button" type="button">Generate draft</button>
+                  <button id="sendAiDraftToBuilder" class="secondary-button" type="button" disabled>Send to Form Builder</button>
+                </div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Draft review</p>
+                    <h2>AI proposes, admin approves</h2>
+                  </div>
+                  <span id="aiDraftStatus" class="pill">waiting</span>
+                </div>
+                <div id="aiDraftSummary" class="ai-draft-empty">
+                  <strong>No draft generated yet</strong>
+                  <p>Choose a mode, add instructions, and generate a draft. Nothing becomes live until an admin sends it to the builder and approves it.</p>
+                </div>
               </section>
             </div>
           </section>
@@ -473,6 +553,6 @@
       </section>
     </div>
 
-    <script defer src="./agency.js?v=builder-2"></script>
+    <script defer src="./agency.js?v=ai-1"></script>
   </body>
 </html>
