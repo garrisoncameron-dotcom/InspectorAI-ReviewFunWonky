@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f4ee" />
+    <title>InspectAid Public Portal</title>
+    <link rel="stylesheet" href="./agency.css?v=supabase-foundation-1" />
+  </head>
+  <body data-access-mode="public">
+    <main class="public-page">
+      <section class="public-hero">
+        <p class="eyebrow">Public portal</p>
+        <h1 id="portalAgencyName">Agency public portal</h1>
+        <p>Submit a public application or complaint. Staff-only workflow, inspection tools, and configuration controls are not available in this portal.</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Start a submission</p>
+            <h2>Choose a public form</h2>
+          </div>
+          <span id="portalDataStatus" class="pill warn">local/offline ready</span>
+        </div>
+        <div id="publicFormChoices" class="public-actions"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Citizen-facing form</p>
+            <h2 id="publicFormTitle">Select a form</h2>
+          </div>
+          <span id="publicFormMeta" class="pill">public only</span>
+        </div>
+        <form id="publicSubmissionForm" class="full-form-preview"></form>
+      </section>
+    </main>
+
+    <script defer src="./agency-config.js?v=supabase-foundation-1"></script>
+    <script defer src="./agency-supabase.js?v=supabase-foundation-1"></script>
+    <script defer src="./agency-data.js?v=supabase-foundation-1"></script>
+    <script defer src="./agency-seeds.js?v=union-hs-1"></script>
+    <script defer src="./public-portal.js?v=supabase-foundation-1"></script>
+  </body>
+</html>
