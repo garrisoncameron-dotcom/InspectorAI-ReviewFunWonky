@@ -1087,6 +1087,25 @@ h2 {
   background: var(--paper);
 }
 
+.lookup-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.lookup-control button {
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #eef7f2;
+  color: var(--green);
+  font-weight: 850;
+}
+
+.address-lookup-control input {
+  border-color: #9fcfbe;
+}
+
 .preview-field small {
   color: var(--muted);
   font-weight: 600;
