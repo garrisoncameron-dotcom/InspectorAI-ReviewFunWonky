@@ -6,6 +6,8 @@ const state = {
   activeFormId: "food-application",
   editingFieldId: null,
   activeModalTab: "general",
+  activeAiMode: "scan",
+  aiDraft: null,
   forms: [
     {
       id: "food-application",
@@ -232,6 +234,60 @@ const roles = [
   ["Public user", "Can submit applications, renewals, documents, payments, and complaints only.", "portal only"]
 ];
 
+const agencyTemplateLibrary = {
+  "union-food": {
+    agency: "Union County NC",
+    title: "Union County food service application",
+    rules: "NC food code, local food establishment permitting, plan review, risk category assignment",
+    fields: [
+      ["Owner legal name", "Text", "Application", "Public and staff"],
+      ["Facility physical address", "Address", "Application", "Public and staff"],
+      ["Permit type", "Select", "Permit", "Staff only"],
+      ["Menu category", "Multi-select", "Application", "Public and staff"],
+      ["Floor plan upload", "Document upload", "Application", "Public and staff"],
+      ["Owner signature", "Signature", "Application", "Public and staff"],
+      ["Risk category", "Select", "Inspection", "Staff only"]
+    ]
+  },
+  "union-pool": {
+    agency: "Union County NC",
+    title: "Union County public pool permit",
+    rules: "NC public pool rules, seasonal opening inspections, operator certification",
+    fields: [
+      ["Pool facility name", "Text", "Application", "Public and staff"],
+      ["Pool type", "Select", "Permit", "Public and staff"],
+      ["Certified pool operator", "Text", "Permit", "Public and staff"],
+      ["Drain cover documentation", "Document upload", "Application", "Public and staff"],
+      ["Opening inspection required", "Checkbox", "Inspection", "Staff only"]
+    ]
+  },
+  "wake-lodging": {
+    agency: "Wake County NC",
+    title: "Wake County lodging complaint intake",
+    rules: "Tourist accommodation sanitation complaints and follow-up tracking",
+    fields: [
+      ["Property name", "Text", "Complaints", "Public and staff"],
+      ["Complaint category", "Select", "Complaints", "Public and staff"],
+      ["Room or unit number", "Text", "Complaints", "Public and staff"],
+      ["Complaint narrative", "Long text", "Complaints", "Public and staff"],
+      ["Photo upload", "Document upload", "Complaints", "Public and staff"]
+    ]
+  },
+  "gwinnett-mobile": {
+    agency: "Gwinnett County GA",
+    title: "Gwinnett mobile food unit",
+    rules: "Mobile unit permit, commissary agreement, route review, food-code inspection",
+    fields: [
+      ["Mobile unit name", "Text", "Application", "Public and staff"],
+      ["Vehicle tag", "Text", "Permit", "Public and staff"],
+      ["Commissary agreement", "Document upload", "Application", "Public and staff"],
+      ["Menu items", "Long text", "Application", "Public and staff"],
+      ["Route schedule", "Document upload", "Application", "Public and staff"],
+      ["Inspection risk category", "Select", "Inspection", "Staff only"]
+    ]
+  }
+};
+
 const views = {
   command: document.querySelector("#view-command"),
   configuration: document.querySelector("#view-configuration"),
@@ -268,6 +324,17 @@ const feeList = document.querySelector("#feeList");
 const inspectionSetupList = document.querySelector("#inspectionSetupList");
 const portalSetupList = document.querySelector("#portalSetupList");
 const roleList = document.querySelector("#roleList");
+const aiModeButtons = [...document.querySelectorAll(".ai-mode")];
+const aiSourceFile = document.querySelector("#aiSourceFile");
+const aiFileName = document.querySelector("#aiFileName");
+const agencyTemplateSelect = document.querySelector("#agencyTemplateSelect");
+const aiInstructions = document.querySelector("#aiInstructions");
+const generateAiDraft = document.querySelector("#generateAiDraft");
+const sendAiDraftToBuilder = document.querySelector("#sendAiDraftToBuilder");
+const aiDraftSummary = document.querySelector("#aiDraftSummary");
+const aiDraftStatus = document.querySelector("#aiDraftStatus");
+const openAiAssistSource = document.querySelector("#openAiAssistSource");
+const aiInputPanels = [...document.querySelectorAll("[data-ai-input]")];
 
 function setView(view) {
   state.activeView = view;
@@ -279,6 +346,15 @@ function setStudio(section) {
   state.activeStudio = section;
   studioTabs.forEach((button) => button.classList.toggle("active", button.dataset.studio === section));
   studioSections.forEach((element) => element.classList.toggle("hidden", element.dataset.studioSection !== section));
+}
+
+function setAiMode(mode) {
+  state.activeAiMode = mode;
+  aiModeButtons.forEach((button) => button.classList.toggle("active", button.dataset.aiMode === mode));
+  aiInputPanels.forEach((panel) => {
+    const isCurrentInput = panel.dataset.aiInput === mode;
+    panel.classList.toggle("is-muted", !isCurrentInput);
+  });
 }
 
 function slugify(value) {
@@ -468,6 +544,136 @@ function renderFormBuilder() {
   renderFields();
 }
 
+function fieldFromAi([label, type, section, visibility], index) {
+  return {
+    id: `${slugify(label)}-${Date.now()}-${index}`,
+    label,
+    key: keyify(label, section),
+    type,
+    section,
+    required: index < 4 ? "true" : "conditional",
+    visibility,
+    editRole: visibility === "Staff only" ? "Agency admin" : "Intake staff",
+    helpText: `AI draft from ${state.activeAiMode === "agency" ? "agency template library" : "uploaded form/instructions"}. Admin must review before publishing.`,
+    width: type === "Long text" || type === "Document upload" ? "Full" : "Half",
+    recordMap: section,
+    reportOutput: section === "Inspection" ? "Inspection report" : "Application summary",
+    auditLevel: visibility === "Staff only" ? "High" : "Standard",
+    sourceLink: section === "Inspection" ? "Food code source pack" : "None"
+  };
+}
+
+function generateDraftFields() {
+  if (state.activeAiMode === "agency") {
+    const template = agencyTemplateLibrary[agencyTemplateSelect.value];
+    return template.fields.map(fieldFromAi);
+  }
+  const base = [
+    ["Applicant legal name", "Text", "Application", "Public and staff"],
+    ["Facility address", "Address", "Application", "Public and staff"],
+    ["Permit type", "Select", "Permit", "Staff only"],
+    ["Document upload", "Document upload", "Application", "Public and staff"],
+    ["Owner signature", "Signature", "Application", "Public and staff"],
+    ["Internal review notes", "Long text", "Internal review", "Staff only"]
+  ];
+  const text = aiInstructions.value.toLowerCase();
+  if (text.includes("pool")) {
+    base.splice(3, 0, ["Pool type", "Select", "Permit", "Public and staff"], ["Certified operator", "Text", "Permit", "Public and staff"]);
+  }
+  if (text.includes("grease")) {
+    base.splice(4, 0, ["Grease trap service date", "Date", "Application", "Public and staff"]);
+  }
+  if (text.includes("floor plan")) {
+    base.splice(4, 0, ["Floor plan upload", "Document upload", "Application", "Public and staff"]);
+  }
+  return base.map(fieldFromAi);
+}
+
+function renderAiDraft() {
+  if (!state.aiDraft) {
+    aiDraftStatus.textContent = "waiting";
+    aiDraftStatus.className = "pill";
+    sendAiDraftToBuilder.disabled = true;
+    aiDraftSummary.className = "ai-draft-empty";
+    aiDraftSummary.innerHTML = `
+      <strong>No draft generated yet</strong>
+      <p>Choose a mode, add instructions, and generate a draft. Nothing becomes live until an admin sends it to the builder and approves it.</p>
+    `;
+    return;
+  }
+  aiDraftStatus.textContent = state.aiDraft.sent ? "sent to builder" : "draft ready";
+  aiDraftStatus.className = state.aiDraft.sent ? "pill good" : "pill warn";
+  sendAiDraftToBuilder.disabled = Boolean(state.aiDraft.sent);
+  aiDraftSummary.className = "ai-draft-card";
+  aiDraftSummary.innerHTML = `
+    <div>
+      <span class="pill ${state.aiDraft.sent ? "good" : "warn"}">${state.aiDraft.sent ? "ready for field edits" : "needs admin review"}</span>
+      <h3>${state.aiDraft.title}</h3>
+      <p>${state.aiDraft.source}</p>
+    </div>
+    <div class="ai-draft-stats">
+      <div><strong>${state.aiDraft.fields.length}</strong><span>fields proposed</span></div>
+      <div><strong>${state.aiDraft.sections}</strong><span>sections detected</span></div>
+      <div><strong>${state.aiDraft.staffOnly}</strong><span>staff-only fields</span></div>
+    </div>
+    <div class="ai-finding-list">
+      ${state.aiDraft.findings.map((finding) => `
+        <article class="ai-finding">
+          <strong>${finding[0]}</strong>
+          <p>${finding[1]}</p>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function createAiDraft() {
+  const partner = agencyTemplateLibrary[agencyTemplateSelect.value];
+  if (state.activeAiMode !== "agency") {
+    agencyTemplateSelect.value = "union-food";
+  }
+  const modeTitle = {
+    scan: "AI draft from uploaded form",
+    instructions: "AI draft from written instructions",
+    agency: `AI draft from ${partner.agency}`
+  }[state.activeAiMode];
+  const fields = generateDraftFields();
+  state.aiDraft = {
+    title: state.activeAiMode === "agency" ? `${partner.title} localized draft` : modeTitle,
+    source: state.activeAiMode === "agency"
+      ? `Borrowed from ${partner.agency}. Assumption: shared rules/requirements; admin must localize labels, fees, and approval rules before use.`
+      : `Generated from ${aiSourceFile.files?.[0]?.name || "instructions"} plus admin prompt.`,
+    fields,
+    sections: new Set(fields.map((field) => field.section)).size,
+    staffOnly: fields.filter((field) => field.visibility === "Staff only").length,
+    findings: [
+      ["Review required fields", "AI marked core identity, permit, and document fields as required. Admin should confirm local ordinance requirements."],
+      ["Visibility assumptions", "Public-facing fields remain applicant-visible; internal review and risk fields are staff-only."],
+      ["Record mappings", "Fields are mapped to application, facility, permit, inspection, or complaint records for downstream workflow."],
+      ["Neighbor agency localization", state.activeAiMode === "agency" ? "Borrowed forms should be compared against local fees, labels, and approval authority before publishing." : "No partner-agency template was used for this draft."]
+    ]
+  };
+  renderAiDraft();
+}
+
+function sendDraftToBuilder() {
+  if (!state.aiDraft) return;
+  const form = {
+    id: `ai-draft-${Date.now()}`,
+    title: state.aiDraft.title,
+    source: state.aiDraft.source,
+    status: "AI draft",
+    description: "Generated by AI Assist; requires admin review before publishing.",
+    fields: state.aiDraft.fields.map((field, index) => ({ ...field, id: `${field.id}-review-${index}` }))
+  };
+  state.forms.push(form);
+  state.activeFormId = form.id;
+  state.aiDraft.sent = true;
+  renderAiDraft();
+  renderFormBuilder();
+  setStudio("fields");
+}
+
 function setModalTab(tab) {
   state.activeModalTab = tab;
   modalTabs.forEach((button) => button.classList.toggle("active", button.dataset.modalTab === tab));
@@ -644,6 +850,18 @@ studioTabs.forEach((button) => {
   button.addEventListener("click", () => setStudio(button.dataset.studio));
 });
 
+aiModeButtons.forEach((button) => {
+  button.addEventListener("click", () => setAiMode(button.dataset.aiMode));
+});
+
+aiSourceFile.addEventListener("change", () => {
+  aiFileName.textContent = aiSourceFile.files?.[0]?.name || "Drop a form, scan, or worksheet";
+});
+
+generateAiDraft.addEventListener("click", createAiDraft);
+sendAiDraftToBuilder.addEventListener("click", sendDraftToBuilder);
+openAiAssistSource.addEventListener("click", () => setStudio("ai"));
+
 modalTabs.forEach((button) => {
   button.addEventListener("click", () => setModalTab(button.dataset.modalTab));
 });
@@ -681,8 +899,10 @@ renderFees();
 renderSetupList(inspectionSetupList, inspectionSetup);
 renderSetupList(portalSetupList, portalSetup);
 renderRoles();
+renderAiDraft();
 setView("command");
 setStudio("templates");
+setAiMode("scan");
 }
 
 if (document.readyState === "loading") {
