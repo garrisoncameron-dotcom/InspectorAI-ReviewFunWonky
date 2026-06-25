@@ -1,7 +1,8 @@
 const AgencyDataStore = (() => {
   const dbName = "inspectaid-agency-os";
   const dbVersion = 1;
-  const stateKey = "agency-os-state";
+  const agenciesKey = "agency-os-agencies";
+  const currentAgencyKey = "agency-os-current-agency";
 
   function openDatabase() {
     return new Promise((resolve, reject) => {
@@ -47,9 +48,14 @@ const AgencyDataStore = (() => {
     return transact("syncQueue", "readwrite", (store) => store.put(event));
   }
 
-  async function queueSyncEvent(recordType, operation, payload) {
+  function stateKey(agencyId) {
+    return `agency-os-state-${agencyId}`;
+  }
+
+  async function queueSyncEvent(recordType, operation, payload, agencyId = "mecklenburg-county-nc") {
     const event = {
-      id: `${recordType}-${operation}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      id: `${agencyId}-${recordType}-${operation}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      agencyId,
       recordType,
       operation,
       payload,
@@ -61,18 +67,21 @@ const AgencyDataStore = (() => {
   }
 
   async function saveAppState(snapshot) {
+    const agencyId = snapshot.agencyId || "mecklenburg-county-nc";
     const value = {
       ...snapshot,
+      agencyId,
       savedAt: new Date().toISOString()
     };
-    await setKey(stateKey, value);
-    await queueSyncEvent("agency_configuration", "update", value);
+    await setKey(stateKey(agencyId), value);
+    await queueSyncEvent("agency_configuration", "update", value, agencyId);
     return value;
   }
 
-  async function saveTestSubmission(form, answers) {
+  async function saveTestSubmission(form, answers, agencyId = "mecklenburg-county-nc") {
     const record = {
-      id: `application-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      id: `${agencyId}-application-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      agencyId,
       type: "application",
       formId: form.id,
       formTitle: form.title,
@@ -83,8 +92,32 @@ const AgencyDataStore = (() => {
       createdAt: new Date().toISOString()
     };
     await putRecord(record);
-    await queueSyncEvent("application", "create", record);
+    await queueSyncEvent("application", "create", record, agencyId);
     return record;
+  }
+
+  async function loadAgencies(defaultAgencies) {
+    const agencies = await getKey(agenciesKey);
+    if (agencies?.length) return agencies;
+    await setKey(agenciesKey, defaultAgencies);
+    return defaultAgencies;
+  }
+
+  async function saveAgencies(agencies) {
+    await setKey(agenciesKey, agencies);
+    return agencies;
+  }
+
+  async function getCurrentAgencyId(defaultAgencyId) {
+    return await getKey(currentAgencyKey) || defaultAgencyId;
+  }
+
+  async function setCurrentAgencyId(agencyId) {
+    await setKey(currentAgencyKey, agencyId);
+  }
+
+  async function clearAgency(agencyId) {
+    await setKey(stateKey(agencyId), null);
   }
 
   async function clearAll() {
@@ -97,24 +130,29 @@ const AgencyDataStore = (() => {
     })));
   }
 
-  async function loadSnapshot() {
+  async function loadSnapshot(agencyId = "mecklenburg-county-nc") {
     const [appState, syncEvents, records] = await Promise.all([
-      getKey(stateKey),
+      getKey(stateKey(agencyId)),
       getAll("syncQueue"),
       getAll("records")
     ]);
     return {
       appState,
-      syncEvents,
-      records
+      syncEvents: (syncEvents || []).filter((event) => event.agencyId === agencyId),
+      records: (records || []).filter((record) => record.agencyId === agencyId)
     };
   }
 
   return {
+    clearAgency,
     clearAll,
+    getCurrentAgencyId,
     loadSnapshot,
+    loadAgencies,
     queueSyncEvent,
     saveAppState,
+    saveAgencies,
+    setCurrentAgencyId,
     saveTestSubmission
   };
 })();
