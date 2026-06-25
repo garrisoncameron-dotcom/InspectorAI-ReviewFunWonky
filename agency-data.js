@@ -158,10 +158,37 @@ const AgencyDataStore = (() => {
       getAll("syncQueue"),
       getAll("records")
     ]);
+    let remoteRecords = [];
+    if (window.InspectAidSupabase?.enabled) {
+      try {
+        const remote = await window.InspectAidSupabase.listSubmissions(agencyId);
+        remoteRecords = (remote.data || []).map((row) => ({
+          id: `remote-${row.id}`,
+          remoteId: row.id,
+          agencyId: row.agency_slug,
+          type: row.record_type,
+          formId: row.form_key,
+          formTitle: row.form_title,
+          answers: row.answers || {},
+          status: row.status,
+          source: row.source,
+          syncStatus: "synced",
+          createdAt: row.submitted_at,
+          updatedAt: row.updated_at
+        }));
+      } catch (error) {
+        remoteRecords = [];
+      }
+    }
+    const localRecords = (records || []).filter((record) => record.agencyId === agencyId);
+    const localRemoteIds = new Set(localRecords.map((record) => record.remoteId).filter(Boolean));
     return {
       appState,
       syncEvents: (syncEvents || []).filter((event) => event.agencyId === agencyId),
-      records: (records || []).filter((record) => record.agencyId === agencyId)
+      records: [
+        ...remoteRecords.filter((record) => !localRemoteIds.has(record.remoteId)),
+        ...localRecords
+      ]
     };
   }
 
