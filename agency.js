@@ -2,6 +2,7 @@ async function bootAgencyOS() {
 const state = {
   activeView: "command",
   activeStudio: "templates",
+  accessMode: "admin",
   activeTemplate: "food-service",
   activeAgencyId: "mecklenburg-county-nc",
   agencies: [
@@ -16,6 +17,7 @@ const state = {
   activeAiMode: "scan",
   aiDraft: null,
   dataStatus: "loading",
+  activePermitId: "union-fs-1842",
   savedAt: null,
   syncEvents: [],
   testRecords: [],
@@ -165,6 +167,69 @@ const timeline = [
   ["Complaint", "Public complaint linked to permitted facility", "Triage required", "alert"]
 ];
 
+const permitRecords = [
+  {
+    id: "union-fs-1842",
+    permitNumber: "FS-2026-1842",
+    facilityName: "Union Station Cafe",
+    address: "104 Main St, Monroe, NC 28112",
+    status: "Active",
+    program: "Food Service",
+    permitType: "Restaurant",
+    risk: "III",
+    inspectionFrequency: "3",
+    phone: "(704) 555-0142",
+    assignedTo: "M. Alvarez",
+    lastInspection: "2026-05-18",
+    nextInspection: "2026-08-18"
+  },
+  {
+    id: "union-fs-2210",
+    permitNumber: "FS-2026-2210",
+    facilityName: "Waxhaw Market Grill",
+    address: "88 Providence Rd S, Waxhaw, NC 28173",
+    status: "Pending",
+    program: "Food Service",
+    permitType: "Limited Food Service",
+    risk: "II",
+    inspectionFrequency: "2",
+    phone: "(704) 555-0198",
+    assignedTo: "J. Patel",
+    lastInspection: "2026-04-02",
+    nextInspection: "2026-07-02"
+  },
+  {
+    id: "union-pool-331",
+    permitNumber: "POOL-2026-331",
+    facilityName: "Cedar Ridge Community Pool",
+    address: "712 Ridge View Dr, Indian Trail, NC 28079",
+    status: "Active",
+    program: "Public Pool",
+    permitType: "Seasonal Pool",
+    risk: "N/A",
+    inspectionFrequency: "1",
+    phone: "(704) 555-0117",
+    assignedTo: "S. Monroe",
+    lastInspection: "2026-06-03",
+    nextInspection: "2026-07-03"
+  },
+  {
+    id: "union-fs-1714",
+    permitNumber: "FS-2026-1714",
+    facilityName: "Rolling Taco Unit 4",
+    address: "Mobile unit - commissary 42 Old Charlotte Hwy",
+    status: "Suspended",
+    program: "Food Service",
+    permitType: "Mobile Food Unit",
+    risk: "Temporary",
+    inspectionFrequency: "4",
+    phone: "(704) 555-0171",
+    assignedTo: "M. Alvarez",
+    lastInspection: "2026-06-12",
+    nextInspection: "Follow-up required"
+  }
+];
+
 const templates = [
   {
     id: "food-service",
@@ -302,12 +367,17 @@ const agencyTemplateLibrary = {
 const views = {
   command: document.querySelector("#view-command"),
   configuration: document.querySelector("#view-configuration"),
+  public: document.querySelector("#view-public"),
   inspections: document.querySelector("#view-inspections")
 };
 
 const navButtons = [...document.querySelectorAll(".nav-button")];
 const moduleGrid = document.querySelector("#moduleGrid");
 const timelineList = document.querySelector("#timelineList");
+const permitSearchInput = document.querySelector("#permitSearchInput");
+const permitStatusFilter = document.querySelector("#permitStatusFilter");
+const permitListScreen = document.querySelector("#permitListScreen");
+const permitDetailPanel = document.querySelector("#permitDetailPanel");
 const templateList = document.querySelector("#templateList");
 const blueprintList = document.querySelector("#blueprintList");
 const fieldList = document.querySelector("#fieldList");
@@ -328,9 +398,13 @@ const dataStatusText = document.querySelector("#dataStatusText");
 const syncQueueStatus = document.querySelector("#syncQueueStatus");
 const activeAgencyName = document.querySelector("#activeAgencyName");
 const activeAgencyUrl = document.querySelector("#activeAgencyUrl");
+const accessModeSelector = document.querySelector("#accessModeSelector");
 const agencySelector = document.querySelector("#agencySelector");
 const addAgencyButton = document.querySelector("#addAgencyButton");
 const newAgencyName = document.querySelector("#newAgencyName");
+const publicPortalLink = document.querySelector("#publicPortalLink");
+const publicPortalTitle = document.querySelector("#publicPortalTitle");
+const publicPortalCopy = document.querySelector("#publicPortalCopy");
 const fieldModal = document.querySelector("#fieldModal");
 const fieldModalForm = document.querySelector("#fieldModalForm");
 const fieldModalTitle = document.querySelector("#fieldModalTitle");
@@ -367,6 +441,11 @@ function renderAgencyEnvironment() {
   const agency = activeAgency();
   activeAgencyName.textContent = agency.name;
   activeAgencyUrl.textContent = agency.url || `/${agency.slug}`;
+  accessModeSelector.value = state.accessMode;
+  document.body.dataset.accessMode = state.accessMode;
+  publicPortalLink.href = `./public.html?agency=${agency.id}`;
+  publicPortalTitle.textContent = `${agency.name} public portal`;
+  publicPortalCopy.textContent = `Citizen-facing intake for ${agency.name}. Public users can submit approved applications and complaints without seeing staff queues or setup controls.`;
   agencySelector.innerHTML = state.agencies.map((item) => `
     <option value="${item.id}" ${item.id === state.activeAgencyId ? "selected" : ""}>${item.name}</option>
   `).join("");
@@ -424,6 +503,12 @@ async function loadPersistedState() {
   }
   state.agencies = await window.AgencyDataStore.loadAgencies(state.agencies);
   state.activeAgencyId = await window.AgencyDataStore.getCurrentAgencyId(state.activeAgencyId);
+  const params = new URLSearchParams(window.location.search);
+  const requestedAgency = params.get("agency");
+  if (requestedAgency && state.agencies.some((agency) => agency.id === requestedAgency)) {
+    state.activeAgencyId = requestedAgency;
+    await window.AgencyDataStore.setCurrentAgencyId(requestedAgency);
+  }
   const snapshot = await window.AgencyDataStore.loadSnapshot(state.activeAgencyId);
   if (snapshot.appState?.forms?.length) {
     state.forms = snapshot.appState.forms;
@@ -511,9 +596,49 @@ async function addAgencyEnvironment() {
 }
 
 function setView(view) {
+  if (view === "configuration" && !canConfigure()) view = state.accessMode === "public" ? "public" : "command";
+  if (view === "inspections" && state.accessMode === "public") view = "public";
   state.activeView = view;
   Object.entries(views).forEach(([key, element]) => element.classList.toggle("hidden", key !== view));
   navButtons.forEach((button) => button.classList.toggle("active", button.dataset.view === view));
+}
+
+function canConfigure() {
+  return ["admin", "company_admin", "agency_admin", "implementation_support"].includes(state.accessMode);
+}
+
+function applyAccessMode(mode = state.accessMode) {
+  state.accessMode = mode;
+  document.body.dataset.accessMode = mode;
+  accessModeSelector.value = mode;
+  const publicOnly = mode === "public";
+  const setupAllowed = canConfigure();
+  document.querySelectorAll('[data-view="configuration"], #configureAgency, .add-agency-control').forEach((element) => {
+    element.classList.toggle("hidden", !setupAllowed);
+  });
+  document.querySelectorAll('[data-view="inspections"], #openInspectionModule').forEach((element) => {
+    element.classList.toggle("hidden", publicOnly);
+  });
+  agencySelector.closest("label")?.classList.toggle("hidden", publicOnly);
+  if (publicOnly) {
+    setView("public");
+  } else if (state.activeView === "public" && mode !== "public") {
+    setView("command");
+  } else if (state.activeView === "configuration" && !setupAllowed) {
+    setView("command");
+  } else {
+    setView(state.activeView);
+  }
+  renderAgencyEnvironment();
+}
+
+function hydrateAccessModeFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const portalPath = window.location.pathname.includes("public");
+  const mode = params.get("mode") || params.get("role") || (portalPath ? "public" : state.accessMode);
+  if (["admin", "staff", "inspector", "public"].includes(mode)) state.accessMode = mode;
+  const agency = params.get("agency");
+  if (agency && state.agencies.some((item) => item.id === agency)) state.activeAgencyId = agency;
 }
 
 function setStudio(section) {
@@ -576,6 +701,78 @@ function renderTimeline() {
       <span class="pill">audit</span>
     </article>
   `).join("");
+}
+
+function filteredPermitRecords() {
+  const query = (permitSearchInput?.value || "").toLowerCase().trim();
+  const status = permitStatusFilter?.value || "";
+  return permitRecords.filter((permit) => {
+    const matchesStatus = !status || permit.status === status;
+    const haystack = [
+      permit.permitNumber,
+      permit.facilityName,
+      permit.address,
+      permit.status,
+      permit.program,
+      permit.permitType,
+      permit.risk,
+      permit.assignedTo
+    ].join(" ").toLowerCase();
+    return matchesStatus && (!query || haystack.includes(query));
+  });
+}
+
+function renderPermitListScreen() {
+  if (!permitListScreen || !permitDetailPanel) return;
+  const permits = filteredPermitRecords();
+  if (!permits.some((permit) => permit.id === state.activePermitId)) {
+    state.activePermitId = permits[0]?.id || null;
+  }
+  permitListScreen.innerHTML = permits.length ? permits.map((permit) => `
+    <button class="record-row ${permit.id === state.activePermitId ? "active" : ""}" type="button" data-permit-id="${permit.id}">
+      <span class="pill ${permit.status === "Active" ? "good" : permit.status === "Suspended" ? "alert" : "warn"}">${permit.status}</span>
+      <strong>${permit.permitNumber}</strong>
+      <span>${permit.facilityName}</span>
+      <span>${permit.address}</span>
+      <span>${permit.program} · ${permit.permitType}</span>
+      <span>Risk ${permit.risk} · ${permit.assignedTo}</span>
+    </button>
+  `).join("") : `
+    <article class="empty-state">
+      <strong>No permits match that search.</strong>
+      <p>Clear the search or status filter to return to the full list.</p>
+    </article>
+  `;
+  permitListScreen.querySelectorAll("[data-permit-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.activePermitId = button.dataset.permitId;
+      renderPermitListScreen();
+    });
+  });
+  const permit = permitRecords.find((item) => item.id === state.activePermitId);
+  permitDetailPanel.innerHTML = permit ? `
+    <p class="eyebrow">Permit record</p>
+    <h3>${permit.facilityName}</h3>
+    <div class="detail-grid">
+      <span class="pill ${permit.status === "Active" ? "good" : permit.status === "Suspended" ? "alert" : "warn"}">${permit.status}</span>
+      <strong>${permit.permitNumber}</strong>
+      <p>${permit.address}</p>
+      <p>${permit.program} · ${permit.permitType}</p>
+      <p>Risk ${permit.risk} · inspection frequency ${permit.inspectionFrequency}</p>
+      <p>${permit.phone} · assigned to ${permit.assignedTo}</p>
+      <p>Last inspection: ${permit.lastInspection}</p>
+      <p>Next inspection: ${permit.nextInspection}</p>
+    </div>
+    <div class="record-actions">
+      <button class="primary-button" type="button">Schedule inspection</button>
+      <button class="secondary-button" type="button">Create complaint</button>
+      <button class="ghost-button" type="button">Open facility history</button>
+    </div>
+  ` : `
+    <p class="eyebrow">Permit record</p>
+    <h3>Select a permit</h3>
+    <p>Open a permit to see facility details, linked address data, and related actions.</p>
+  `;
 }
 
 function renderTemplates() {
@@ -1702,6 +1899,9 @@ navButtons.forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.view));
 });
 
+permitSearchInput?.addEventListener("input", renderPermitListScreen);
+permitStatusFilter?.addEventListener("change", renderPermitListScreen);
+
 studioTabs.forEach((button) => {
   button.addEventListener("click", () => setStudio(button.dataset.studio));
 });
@@ -1746,14 +1946,17 @@ resetLocalDataButton.addEventListener("click", async () => {
 });
 previewFormButton.addEventListener("click", openFullFormPreview);
 agencySelector.addEventListener("change", () => switchAgencyEnvironment(agencySelector.value));
+accessModeSelector.addEventListener("change", () => applyAccessMode(accessModeSelector.value));
 addAgencyButton.addEventListener("click", addAgencyEnvironment);
 
 document.querySelector("#openInspectionModule").addEventListener("click", () => setView("inspections"));
 document.querySelector("#configureAgency").addEventListener("click", () => setView("configuration"));
 
+hydrateAccessModeFromUrl();
 await loadPersistedState();
 renderModules();
 renderTimeline();
+renderPermitListScreen();
 renderTemplates();
 renderBlueprint();
 renderFormBuilder();
@@ -1767,6 +1970,7 @@ updateDataStatus();
 setView("command");
 setStudio("templates");
 setAiMode("scan");
+applyAccessMode(state.accessMode);
 }
 
 if (document.readyState === "loading") {
