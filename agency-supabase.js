@@ -105,6 +105,19 @@ const InspectAidSupabase = (() => {
     return { remote: true, data: data || [] };
   }
 
+  async function updateSubmissionStatus(id, status) {
+    const supabase = await client();
+    if (!supabase) return { remote: false };
+    const { data, error } = await supabase
+      .from("public_submissions")
+      .update({ status })
+      .eq("id", id)
+      .select("id, status, updated_at")
+      .single();
+    if (error) throw error;
+    return { remote: true, data };
+  }
+
   return {
     client,
     enabled,
@@ -113,7 +126,8 @@ const InspectAidSupabase = (() => {
     listAgencyMemberships,
     saveConfiguration,
     submitApplication,
-    submitComplaint
+    submitComplaint,
+    updateSubmissionStatus
   };
 })();
 
