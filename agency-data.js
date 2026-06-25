@@ -118,6 +118,27 @@ const AgencyDataStore = (() => {
     return record;
   }
 
+  async function updateSubmissionStatus(record, status, agencyId = "mecklenburg-county-nc") {
+    const value = {
+      ...record,
+      status,
+      updatedAt: new Date().toISOString()
+    };
+    let syncStatus = "pending";
+    if (record.remoteId && window.InspectAidSupabase?.enabled) {
+      try {
+        await window.InspectAidSupabase.updateSubmissionStatus(record.remoteId, status);
+        syncStatus = "synced";
+      } catch (error) {
+        value.syncError = error.message;
+      }
+    } else if (!record.id?.startsWith("remote-")) {
+      await putRecord(value);
+    }
+    await queueSyncEvent(record.type || "application", "update", value, agencyId, syncStatus);
+    return { ...value, syncStatus };
+  }
+
   async function loadAgencies(defaultAgencies) {
     const agencies = await getKey(agenciesKey);
     if (agencies?.length) return agencies;
@@ -202,7 +223,8 @@ const AgencyDataStore = (() => {
     saveAppState,
     saveAgencies,
     setCurrentAgencyId,
-    saveTestSubmission
+    saveTestSubmission,
+    updateSubmissionStatus
   };
 })();
 
