@@ -797,6 +797,27 @@ function splitPossibleQuestions(line) {
     .filter(Boolean);
 }
 
+function looksGarbledText(text) {
+  const visible = text.replace(/\s/g, "");
+  if (visible.length < 12) return false;
+  const oddChars = (visible.match(/[^\x20-\x7E]/g) || []).length;
+  const replacementChars = (visible.match(/[�□\uFFFD]/g) || []).length;
+  const symbolRuns = (visible.match(/[¥§¤¶◊�□]{2,}/g) || []).length;
+  const asciiLetters = (visible.match(/[A-Za-z]/g) || []).length;
+  return oddChars / visible.length > 0.18
+    || replacementChars > 3
+    || symbolRuns > 1
+    || (visible.length > 40 && asciiLetters / visible.length < 0.28);
+}
+
+function normalizePdfText(text) {
+  return text
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter((line) => line && !looksGarbledText(line))
+    .join("\n");
+}
+
 function fieldsFromExtractedText(text) {
   const normalized = text
     .replace(/\r/g, "\n")
@@ -838,18 +859,30 @@ function fieldsFromExtractedText(text) {
   return { fields, lineCount: lines.length, reviewItems };
 }
 
-function extractTextFromPdfBuffer(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  const strings = [];
-  const matches = binary.matchAll(/\(([^()]{3,220})\)\s*Tj|\(([^()]{3,220})\)\s*'/g);
-  for (const match of matches) {
-    strings.push((match[1] || match[2] || "").replace(/\\([()\\])/g, "$1"));
+async function extractTextFromPdfBuffer(buffer) {
+  const pdfjs = await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.mjs");
+  pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.mjs";
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+  const pageTexts = [];
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const lines = [];
+    let currentY = null;
+    let currentLine = [];
+    content.items.forEach((item) => {
+      const y = Math.round(item.transform?.[5] || 0);
+      if (currentY !== null && Math.abs(y - currentY) > 3) {
+        lines.push(currentLine.join(" ").trim());
+        currentLine = [];
+      }
+      currentY = y;
+      if (item.str?.trim()) currentLine.push(item.str.trim());
+    });
+    if (currentLine.length) lines.push(currentLine.join(" ").trim());
+    pageTexts.push(lines.join("\n"));
   }
-  return strings.join("\n");
+  return normalizePdfText(pageTexts.join("\n"));
 }
 
 async function readUploadedFormText() {
@@ -860,11 +893,24 @@ async function readUploadedFormText() {
     return { text: await file.text(), source: file.name, warning: "" };
   }
   if (extension === "pdf") {
-    const text = extractTextFromPdfBuffer(await file.arrayBuffer());
+    let text = "";
+    try {
+      text = await extractTextFromPdfBuffer(await file.arrayBuffer());
+    } catch (error) {
+      return {
+        text: "",
+        source: file.name,
+        warning: "PDF text extraction failed in the browser. This file likely needs OCR or server-side document processing before fields can be identified reliably."
+      };
+    }
+    const garbled = looksGarbledText(text);
+    const cleanText = garbled ? "" : text;
     return {
-      text,
+      text: cleanText,
       source: file.name,
-      warning: text.trim() ? "PDF text layer extracted. Admin should compare against the original form." : "This PDF did not expose readable text. OCR is required before all questions can be captured."
+      warning: cleanText.trim()
+        ? "PDF text layer extracted with PDF.js. Admin should compare against the original form."
+        : "This PDF did not expose clean readable form text. OCR or server-side extraction is required before all questions can be captured."
     };
   }
   return {
