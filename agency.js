@@ -402,6 +402,7 @@ const appModeEyebrow = document.querySelector("#appModeEyebrow");
 const appModeTitle = document.querySelector("#appModeTitle");
 const accessModeSelector = document.querySelector("#accessModeSelector");
 const agencySelector = document.querySelector("#agencySelector");
+const environmentBar = document.querySelector(".environment-bar");
 const addAgencyButton = document.querySelector("#addAgencyButton");
 const newAgencyName = document.querySelector("#newAgencyName");
 const publicPortalLink = document.querySelector("#publicPortalLink");
@@ -647,6 +648,7 @@ function applyAccessMode(mode = state.accessMode) {
   document.querySelectorAll('[data-view="public"]').forEach((element) => {
     element.classList.toggle("hidden", !setupAllowed && !publicOnly);
   });
+  environmentBar?.classList.toggle("hidden", !setupAllowed);
   accessModeSelector.closest("label")?.classList.toggle("hidden", !setupAllowed);
   agencySelector.closest("label")?.classList.toggle("hidden", publicOnly || staffOnly);
   if (publicOnly) {
