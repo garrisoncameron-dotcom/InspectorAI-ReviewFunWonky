@@ -579,13 +579,23 @@ function renderTimeline() {
 }
 
 function renderTemplates() {
-  templateList.innerHTML = templates.map((template) => `
+  const seededForms = state.forms.filter((form) => form.seedVersion || form.source?.includes("HS export"));
+  templateList.innerHTML = `
+    ${templates.map((template) => `
     <button class="module-card ${template.id === state.activeTemplate ? "active" : ""}" type="button" data-template="${template.id}">
       <span class="pill ${template.id === state.activeTemplate ? "good" : ""}">${template.id === state.activeTemplate ? "active" : "template"}</span>
       <strong>${template.title}</strong>
       <p>${template.text}</p>
     </button>
-  `).join("");
+  `).join("")}
+    ${seededForms.map((form) => `
+      <button class="module-card ${form.id === state.activeFormId ? "active" : ""}" type="button" data-template-form-id="${form.id}">
+        <span class="pill good">HS template</span>
+        <strong>${form.title}</strong>
+        <p>${form.fields.length} fields · ${form.source}. Click to edit fields.</p>
+      </button>
+    `).join("")}
+  `;
   activeTemplateName.textContent = templates.find((template) => template.id === state.activeTemplate)?.title || "Custom template";
   templateList.querySelectorAll("[data-template]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -595,6 +605,9 @@ function renderTemplates() {
       const formId = defaultFormForTemplate(state.activeTemplate);
       if (formId) selectFormForEditing(formId);
     });
+  });
+  templateList.querySelectorAll("[data-template-form-id]").forEach((button) => {
+    button.addEventListener("click", () => selectFormForEditing(button.dataset.templateFormId));
   });
 }
 
