@@ -44,7 +44,7 @@ body[data-access-mode="inspector"] .dashboard-grid {
 
 body[data-access-mode="staff"] .permit-directory,
 body[data-access-mode="inspector"] .permit-directory {
-  margin-top: 0;
+  margin-top: 14px;
 }
 
 body[data-access-mode="staff"] .topbar,
@@ -391,6 +391,54 @@ h2 {
   font-size: 1.45rem;
 }
 
+.staff-dashboard {
+  display: none;
+  margin-bottom: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbf9 100%);
+}
+
+body[data-access-mode="staff"] .staff-dashboard,
+body[data-access-mode="inspector"] .staff-dashboard {
+  display: grid;
+}
+
+.staff-workload-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.workload-card {
+  display: grid;
+  gap: 8px;
+  min-height: 142px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  color: var(--ink);
+  background: #fff;
+  text-align: left;
+}
+
+.workload-card:hover,
+.workload-card:focus-visible {
+  border-color: var(--green);
+  outline: 2px solid #1f6f5b20;
+}
+
+.workload-card strong {
+  display: block;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.workload-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
 .module-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -612,7 +660,7 @@ h2 {
 
 .list-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1fr) 220px 180px;
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -786,6 +834,50 @@ h2 {
 .detail-grid {
   display: grid;
   gap: 8px;
+}
+
+.record-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.action-modal-body {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px 0;
+}
+
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.linked-activity {
+  display: grid;
+  gap: 8px;
+}
+
+.linked-activity h3 {
+  margin: 0;
+}
+
+.linked-activity article {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--paper);
+}
+
+.linked-activity article strong,
+.linked-activity article p {
+  margin: 0;
+}
+
+.inline-action-form {
+  padding: 0;
 }
 
 .record-actions {
@@ -1417,7 +1509,9 @@ h2 {
   .record-workspace,
   .record-row,
   .intake-workspace,
-  .intake-row {
+  .intake-row,
+  .staff-workload-grid,
+  .history-grid {
     grid-template-columns: 1fr;
   }
 
