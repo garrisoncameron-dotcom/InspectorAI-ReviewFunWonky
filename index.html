@@ -5,6 +5,484 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f4ee" />
     <title>InspectAid Agency OS</title>
+    <link rel="stylesheet" href="./agency.css?v=builder-1" />
+  </head>
+  <body>
+    <div class="agency-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">IA</div>
+          <div>
+            <strong>InspectAid</strong>
+            <span>Agency OS</span>
+          </div>
+        </div>
+
+        <nav class="nav-group" aria-label="Agency modules">
+          <button class="nav-button active" type="button" data-view="command">Command Center <span class="badge good">live</span></button>
+          <button class="nav-button" type="button" data-view="configuration">Setup Studio <span class="badge alert">admin only</span></button>
+          <button class="nav-button" type="button" data-view="inspections">Inspections <span class="badge good">InspectAid</span></button>
+        </nav>
+
+        <section class="sidebar-card">
+          <h3>Enterprise frame</h3>
+          <p>Applications, permits, billing, inspections, complaints, templates, and agency-specific configuration in one operating record.</p>
+        </section>
+
+        <section class="sidebar-card">
+          <h3>Privileged setup only</h3>
+          <p>Agency admins or implementation support can shape templates and rules. Inspectors and the public never see these controls.</p>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Full service regulatory platform</p>
+            <h1>Agency OS</h1>
+          </div>
+          <div class="top-actions">
+            <button id="configureAgency" class="secondary-button" type="button">Admin setup</button>
+            <button id="openInspectionModule" class="primary-button" type="button">Open inspections</button>
+          </div>
+        </header>
+
+        <section id="view-command">
+          <div class="metric-grid" aria-label="Agency workload">
+            <div class="metric"><strong>18</strong><span>applications waiting</span></div>
+            <div class="metric"><strong>642</strong><span>active permits</span></div>
+            <div class="metric"><strong>37</strong><span>inspections due</span></div>
+            <div class="metric"><strong>11</strong><span>open complaints</span></div>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Lifecycle modules</p>
+                  <h2>One operating record from application to enforcement</h2>
+                </div>
+                <span class="pill good">enterprise shell</span>
+              </div>
+              <div id="moduleGrid" class="module-grid"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Agency queue</p>
+                  <h2>Current workflow</h2>
+                </div>
+                <span class="pill warn">triage</span>
+              </div>
+              <div id="timelineList" class="queue"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="view-configuration" class="hidden">
+          <section class="studio-hero">
+            <div>
+              <p class="eyebrow">Agency Setup Studio</p>
+              <h2>Configure the operating system before the first application arrives</h2>
+              <p>Templates provide a strong starting point. Only agency administrators or approved implementation support can shape records, forms, workflows, fees, inspections, and public intake rules.</p>
+            </div>
+            <div class="studio-readiness" aria-label="Configuration readiness">
+              <div><strong>7</strong><span>setup areas</span></div>
+              <div><strong>42</strong><span>editable rules</span></div>
+              <div><strong>0</strong><span>code changes</span></div>
+            </div>
+          </section>
+
+          <div class="studio-tabs" role="tablist" aria-label="Setup Studio sections">
+            <button class="studio-tab active" type="button" data-studio="templates">Templates</button>
+            <button class="studio-tab" type="button" data-studio="fields">Fields</button>
+            <button class="studio-tab" type="button" data-studio="workflow">Workflow</button>
+            <button class="studio-tab" type="button" data-studio="fees">Fees</button>
+            <button class="studio-tab" type="button" data-studio="inspections">Inspections</button>
+            <button class="studio-tab" type="button" data-studio="portal">Public portal</button>
+            <button class="studio-tab" type="button" data-studio="security">Access control</button>
+          </div>
+
+          <section class="studio-section" data-studio-section="templates">
+            <div class="config-layout">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Template library</p>
+                    <h2>Start close, then configure</h2>
+                  </div>
+                  <span class="pill good" id="activeTemplateName">Food Service Agency</span>
+                </div>
+                <div id="templateList" class="template-list"></div>
+              </section>
+
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Template blueprint</p>
+                    <h2>What this template installs</h2>
+                  </div>
+                  <span class="pill">draftable</span>
+                </div>
+                <div id="blueprintList" class="blueprint-list"></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="fields">
+            <div class="builder-layout">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Form source</p>
+                    <h2>Use a template or start blank</h2>
+                  </div>
+                  <span class="pill alert">admin only</span>
+                </div>
+
+                <div class="source-actions">
+                  <button id="useTemplateForm" class="module-card active" type="button">
+                    <span class="pill good">template</span>
+                    <strong>Food service application</strong>
+                    <p>Start with common food establishment intake fields, then edit everything.</p>
+                  </button>
+                  <button id="createBlankForm" class="module-card" type="button">
+                    <span class="pill">blank slate</span>
+                    <strong>New custom form</strong>
+                    <p>Start empty for a local program, internal review, or unusual permit type.</p>
+                  </button>
+                </div>
+
+                <div class="form-list-head">
+                  <span class="section-kicker">Forms in this agency template</span>
+                  <button id="newBlankForm" class="ghost-button compact-button" type="button">Blank form</button>
+                </div>
+                <div id="formList" class="form-list"></div>
+              </section>
+
+              <section class="panel builder-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">Form builder</p>
+                    <h2 id="activeFormTitle">Food service application</h2>
+                  </div>
+                  <div class="top-actions">
+                    <button id="addFieldButton" class="primary-button" type="button">Add field</button>
+                    <button id="previewFormButton" class="secondary-button" type="button">Preview</button>
+                  </div>
+                </div>
+                <div id="activeFormMeta" class="builder-meta"></div>
+                <div id="fieldList" class="field-list field-canvas" aria-live="polite"></div>
+              </section>
+            </div>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="workflow">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Workflow designer</p>
+                  <h2>Statuses, transitions, assignments, and audit rules</h2>
+                </div>
+                <span class="pill warn">permissioned</span>
+              </div>
+              <div id="workflowBoard" class="workflow-board"></div>
+            </section>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="fees">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Fee schedule builder</p>
+                  <h2>Invoices generated from configurable permit rules</h2>
+                </div>
+                <span class="pill good">billing-ready</span>
+              </div>
+              <div id="feeList" class="fee-list"></div>
+            </section>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="inspections">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Inspection setup</p>
+                  <h2>Forms, frequencies, source packs, and report outputs</h2>
+                </div>
+                <span class="pill good">InspectAid-connected</span>
+              </div>
+              <div id="inspectionSetupList" class="setup-list"></div>
+            </section>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="portal">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Public portal setup</p>
+                  <h2>Online intake for applications, renewals, complaints, and payments</h2>
+                </div>
+                <span class="pill">public-facing</span>
+              </div>
+              <div id="portalSetupList" class="setup-list"></div>
+            </section>
+          </section>
+
+          <section class="studio-section hidden" data-studio-section="security">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Roles and permissions</p>
+                  <h2>Keep setup power away from public users and rank-and-file staff</h2>
+                </div>
+                <span class="pill warn">least privilege</span>
+              </div>
+              <div id="roleList" class="role-list"></div>
+            </section>
+          </section>
+        </section>
+
+        <section id="view-inspections" class="hidden">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Inspection intelligence module</p>
+                <h2>Existing InspectAid functionality, wrapped inside Agency OS</h2>
+              </div>
+              <a class="ghost-button" href="./inspections.html" target="_blank" rel="noreferrer">Open full page</a>
+            </div>
+            <iframe class="inspection-frame" title="InspectAid inspection module" src="./inspections.html?embedded=agency-os"></iframe>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div id="fieldModal" class="modal-backdrop hidden" role="presentation">
+      <section class="field-modal" role="dialog" aria-modal="true" aria-labelledby="fieldModalTitle">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">Field properties</p>
+            <h2 id="fieldModalTitle">Add field</h2>
+          </div>
+          <button id="closeFieldModal" class="icon-button" type="button" aria-label="Close field editor">x</button>
+        </div>
+
+        <form id="fieldModalForm" class="modal-form">
+          <div class="modal-tabs" aria-label="Field property groups">
+            <button class="modal-tab active" type="button" data-modal-tab="general">General</button>
+            <button class="modal-tab" type="button" data-modal-tab="behavior">Behavior</button>
+            <button class="modal-tab" type="button" data-modal-tab="validation">Validation</button>
+            <button class="modal-tab" type="button" data-modal-tab="display">Display</button>
+            <button class="modal-tab" type="button" data-modal-tab="integrations">Integrations</button>
+          </div>
+
+          <div class="modal-page" data-modal-page="general">
+            <label>
+              Field label
+              <input name="label" required />
+            </label>
+            <label>
+              Field key
+              <input name="key" placeholder="auto.generated_key" />
+            </label>
+            <label>
+              Field type
+              <select name="type">
+                <option>Text</option>
+                <option>Long text</option>
+                <option>Number</option>
+                <option>Currency</option>
+                <option>Date</option>
+                <option>Time</option>
+                <option>Select</option>
+                <option>Multi-select</option>
+                <option>Checkbox</option>
+                <option>Address</option>
+                <option>Phone</option>
+                <option>Email</option>
+                <option>Document upload</option>
+                <option>Signature</option>
+                <option>Inspection checklist item</option>
+              </select>
+            </label>
+            <label>
+              Section
+              <select name="section">
+                <option>Application</option>
+                <option>Permit</option>
+                <option>Billing</option>
+                <option>Inspection</option>
+                <option>Complaints</option>
+                <option>Internal review</option>
+              </select>
+            </label>
+            <label class="wide">
+              Help text
+              <textarea name="helpText" rows="3" placeholder="Shown to staff or public users when this field appears."></textarea>
+            </label>
+          </div>
+
+          <div class="modal-page hidden" data-modal-page="behavior">
+            <label>
+              Visibility
+              <select name="visibility">
+                <option>Public and staff</option>
+                <option>Staff only</option>
+                <option>Admin only</option>
+                <option>Conditional</option>
+              </select>
+            </label>
+            <label>
+              Edit permission
+              <select name="editRole">
+                <option>Agency admin</option>
+                <option>Intake staff</option>
+                <option>Inspector</option>
+                <option>Supervisor</option>
+                <option>Billing admin</option>
+              </select>
+            </label>
+            <label>
+              Required
+              <select name="required">
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+                <option value="conditional">Conditional</option>
+              </select>
+            </label>
+            <label>
+              Default value
+              <input name="defaultValue" />
+            </label>
+            <label class="wide">
+              Conditional rule
+              <textarea name="conditionalRule" rows="3" placeholder="Example: show when Permit type equals Mobile food unit."></textarea>
+            </label>
+          </div>
+
+          <div class="modal-page hidden" data-modal-page="validation">
+            <label>
+              Minimum
+              <input name="min" />
+            </label>
+            <label>
+              Maximum
+              <input name="max" />
+            </label>
+            <label>
+              Pattern
+              <input name="pattern" placeholder="Optional format rule" />
+            </label>
+            <label>
+              Unique value
+              <select name="unique">
+                <option value="false">No</option>
+                <option value="true">Yes</option>
+              </select>
+            </label>
+            <label class="wide">
+              Options
+              <textarea name="options" rows="4" placeholder="One option per line for select or multi-select fields."></textarea>
+            </label>
+          </div>
+
+          <div class="modal-page hidden" data-modal-page="display">
+            <label>
+              Width
+              <select name="width">
+                <option>Full</option>
+                <option>Half</option>
+                <option>Third</option>
+                <option>Compact</option>
+              </select>
+            </label>
+            <label>
+              Position
+              <select name="position">
+                <option>Normal</option>
+                <option>Pin to top</option>
+                <option>Group header</option>
+                <option>Review panel</option>
+              </select>
+            </label>
+            <label>
+              Public label override
+              <input name="publicLabel" />
+            </label>
+            <label>
+              Staff label override
+              <input name="staffLabel" />
+            </label>
+            <label class="wide">
+              Placeholder
+              <input name="placeholder" />
+            </label>
+          </div>
+
+          <div class="modal-page hidden" data-modal-page="integrations">
+            <label>
+              Maps to record
+              <select name="recordMap">
+                <option>Application</option>
+                <option>Facility</option>
+                <option>Permit</option>
+                <option>Invoice</option>
+                <option>Inspection</option>
+                <option>Complaint</option>
+              </select>
+            </label>
+            <label>
+              Report output
+              <select name="reportOutput">
+                <option>Do not print</option>
+                <option>Application summary</option>
+                <option>Permit certificate</option>
+                <option>Inspection report</option>
+                <option>Invoice</option>
+              </select>
+            </label>
+            <label>
+              Audit level
+              <select name="auditLevel">
+                <option>Standard</option>
+                <option>High</option>
+                <option>Confidential</option>
+              </select>
+            </label>
+            <label>
+              Source pack link
+              <select name="sourceLink">
+                <option>None</option>
+                <option>Food code source pack</option>
+                <option>Local ordinance</option>
+                <option>Agency SOP</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button id="deleteFieldButton" class="danger-button" type="button">Delete field</button>
+            <div class="button-row">
+              <button id="cancelFieldButton" class="ghost-button" type="button">Cancel</button>
+              <button class="primary-button" type="submit">Save field</button>
+            </div>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <script src="./agency.js?v=builder-1"></script>
+  </body>
+</html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f4ee" />
+    <title>InspectAid Agency OS</title>
     <link rel="stylesheet" href="./agency.css?v=studio-2" />
   </head>
   <body>
