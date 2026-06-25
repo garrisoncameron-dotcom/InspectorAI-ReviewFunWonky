@@ -1,3 +1,4 @@
+function bootAgencyOS() {
 const state = {
   activeView: "command",
   activeStudio: "templates",
@@ -682,3 +683,10 @@ renderSetupList(portalSetupList, portalSetup);
 renderRoles();
 setView("command");
 setStudio("templates");
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootAgencyOS);
+} else {
+  bootAgencyOS();
+}
