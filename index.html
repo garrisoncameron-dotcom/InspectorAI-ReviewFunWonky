@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f4ee" />
     <title>InspectAid Agency OS</title>
-    <link rel="stylesheet" href="./agency.css?v=staff-shell-4" />
+    <link rel="stylesheet" href="./agency.css?v=staff-shell-6" />
   </head>
   <body>
     <div class="agency-shell">
@@ -140,7 +140,14 @@
                 </div>
                 <span id="intakeRecordCount" class="pill">0 records</span>
               </div>
-              <div id="intakeSubmissionList" class="intake-list" aria-live="polite"></div>
+              <div class="intake-workspace">
+                <div id="intakeSubmissionList" class="intake-list" aria-live="polite"></div>
+                <aside id="intakeDetailPanel" class="intake-detail">
+                  <p class="eyebrow">Submission detail</p>
+                  <h3>Select an intake record</h3>
+                  <p>Review submitted answers, then move the application or complaint through staff triage.</p>
+                </aside>
+              </div>
             </section>
             <div class="record-workspace">
               <div class="record-list" id="permitListScreen" aria-live="polite"></div>
@@ -672,9 +679,9 @@
     </div>
 
     <script defer src="./agency-config.js?v=db-live-1"></script>
-    <script defer src="./agency-supabase.js?v=db-live-1"></script>
-    <script defer src="./agency-data.js?v=db-live-1"></script>
+    <script defer src="./agency-supabase.js?v=db-live-2"></script>
+    <script defer src="./agency-data.js?v=db-live-2"></script>
     <script defer src="./agency-seeds.js?v=union-hs-1"></script>
-    <script defer src="./agency.js?v=staff-shell-5"></script>
+    <script defer src="./agency.js?v=staff-shell-6"></script>
   </body>
 </html>
