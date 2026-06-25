@@ -649,15 +649,29 @@ h2 {
   gap: 8px;
 }
 
+.intake-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.65fr);
+  gap: 10px;
+}
+
 .intake-row {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr) 120px 140px;
   gap: 10px;
   align-items: center;
+  width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
   background: #fff;
+  color: var(--ink);
+  text-align: left;
+}
+
+.intake-row.active {
+  border-color: var(--green);
+  outline: 2px solid #1f6f5b20;
 }
 
 .intake-row p,
@@ -676,6 +690,46 @@ h2 {
 
 .compact-empty {
   padding: 12px;
+}
+
+.intake-detail {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+}
+
+.intake-detail h3,
+.intake-detail p {
+  margin: 0;
+}
+
+.answer-list {
+  display: grid;
+  gap: 7px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.answer-row {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--paper);
+}
+
+.answer-row strong {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.answer-row span {
+  overflow-wrap: anywhere;
 }
 
 .record-workspace {
@@ -1361,7 +1415,9 @@ h2 {
   }
 
   .record-workspace,
-  .record-row {
+  .record-row,
+  .intake-workspace,
+  .intake-row {
     grid-template-columns: 1fr;
   }
 
