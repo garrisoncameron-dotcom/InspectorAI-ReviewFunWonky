@@ -52,14 +52,14 @@ const AgencyDataStore = (() => {
     return `agency-os-state-${agencyId}`;
   }
 
-  async function queueSyncEvent(recordType, operation, payload, agencyId = "mecklenburg-county-nc") {
+  async function queueSyncEvent(recordType, operation, payload, agencyId = "mecklenburg-county-nc", status = "pending") {
     const event = {
       id: `${agencyId}-${recordType}-${operation}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       agencyId,
       recordType,
       operation,
       payload,
-      status: "pending",
+      status,
       createdAt: new Date().toISOString()
     };
     await putSyncEvent(event);
@@ -74,25 +74,47 @@ const AgencyDataStore = (() => {
       savedAt: new Date().toISOString()
     };
     await setKey(stateKey(agencyId), value);
-    await queueSyncEvent("agency_configuration", "update", value, agencyId);
+    let remoteStatus = "pending";
+    if (window.InspectAidSupabase?.enabled) {
+      try {
+        await window.InspectAidSupabase.saveConfiguration(value);
+        remoteStatus = "synced";
+      } catch (error) {
+        remoteStatus = "pending";
+      }
+    }
+    await queueSyncEvent("agency_configuration", "update", value, agencyId, remoteStatus);
     return value;
   }
 
-  async function saveTestSubmission(form, answers, agencyId = "mecklenburg-county-nc") {
+  async function saveTestSubmission(form, answers, agencyId = "mecklenburg-county-nc", options = {}) {
+    const recordType = options.recordType || (form.id?.includes("complaint") ? "complaint" : "application");
     const record = {
-      id: `${agencyId}-application-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      id: `${agencyId}-${recordType}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       agencyId,
-      type: "application",
+      type: recordType,
       formId: form.id,
       formTitle: form.title,
       formStatus: form.status,
       answers,
-      status: "local test submission",
+      status: options.status || "local test submission",
       syncStatus: "pending",
       createdAt: new Date().toISOString()
     };
+    if (window.InspectAidSupabase?.enabled && options.remote !== false) {
+      try {
+        const remote = recordType === "complaint"
+          ? await window.InspectAidSupabase.submitComplaint({ agencyId, answers })
+          : await window.InspectAidSupabase.submitApplication({ agencyId, form, answers, portalSource: options.portalSource || "staff_test" });
+        record.syncStatus = remote.remote ? "synced" : "pending";
+        record.remoteId = remote.data?.id || null;
+      } catch (error) {
+        record.syncStatus = "pending";
+        record.syncError = error.message;
+      }
+    }
     await putRecord(record);
-    await queueSyncEvent("application", "create", record, agencyId);
+    await queueSyncEvent(recordType, "create", record, agencyId, record.syncStatus === "synced" ? "synced" : "pending");
     return record;
   }
 
