@@ -132,9 +132,8 @@ const AgencyDataStore = (() => {
       } catch (error) {
         value.syncError = error.message;
       }
-    } else if (!record.id?.startsWith("remote-")) {
-      await putRecord(value);
     }
+    if (!record.id?.startsWith("remote-")) await putRecord({ ...value, syncStatus });
     await queueSyncEvent(record.type || "application", "update", value, agencyId, syncStatus);
     return { ...value, syncStatus };
   }
