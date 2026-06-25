@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f4ee" />
     <title>InspectAid Agency OS</title>
-    <link rel="stylesheet" href="./agency.css?v=staff-shell-8" />
+    <link rel="stylesheet" href="./agency.css?v=staff-shell-9" />
   </head>
   <body>
     <div class="agency-shell">
@@ -18,7 +18,12 @@
           </div>
         </div>
 
-        <nav class="nav-group" aria-label="Agency modules">
+        <button id="mobileMenuToggle" class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="agencyNav">
+          <span aria-hidden="true"></span>
+          Menu
+        </button>
+
+        <nav id="agencyNav" class="nav-group" aria-label="Agency modules">
           <button class="nav-button active" type="button" data-view="command">Command Center <span class="badge good">live</span></button>
           <button class="nav-button staff-nav hidden" type="button" data-view="applications">Applications <span class="badge warn">queue</span></button>
           <button class="nav-button staff-nav hidden" type="button" data-view="complaints">Complaints <span class="badge alert">queue</span></button>
@@ -493,10 +498,11 @@
               <div>
                 <p class="eyebrow">Inspection intelligence module</p>
                 <h2>Existing InspectAid functionality, wrapped inside Agency OS</h2>
+                <p id="inspectionContextNote" class="muted">Select Perform inspection from a permit to launch the AI inspection control with facility context.</p>
               </div>
-              <a class="ghost-button" href="./inspections.html" target="_blank" rel="noreferrer">Open full page</a>
+              <a id="inspectionFullPageLink" class="ghost-button" href="./inspections.html#inspection" target="_blank" rel="noreferrer">Open full page</a>
             </div>
-            <iframe class="inspection-frame" title="InspectAid inspection module" src="./inspections.html?embedded=agency-os"></iframe>
+            <iframe id="inspectionFrame" class="inspection-frame" title="InspectAid inspection module" src="./inspections.html?embedded=agency-os#inspection"></iframe>
           </section>
         </section>
       </main>
@@ -724,6 +730,6 @@
     <script defer src="./agency-supabase.js?v=db-live-2"></script>
     <script defer src="./agency-data.js?v=db-live-3"></script>
     <script defer src="./agency-seeds.js?v=union-hs-1"></script>
-    <script defer src="./agency.js?v=staff-shell-8"></script>
+    <script defer src="./agency.js?v=staff-shell-9"></script>
   </body>
 </html>
