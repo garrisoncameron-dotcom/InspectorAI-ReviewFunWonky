@@ -359,6 +359,12 @@ h2 {
   gap: 16px;
 }
 
+.ai-layout {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(320px, 0.78fr);
+  gap: 16px;
+}
+
 .studio-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
@@ -453,6 +459,142 @@ h2 {
   display: grid;
   gap: 10px;
   margin-bottom: 16px;
+}
+
+.ai-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ai-mode {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 13px;
+  background: #fff;
+  text-align: left;
+}
+
+.ai-mode.active {
+  border-color: var(--green);
+  outline: 2px solid #1f6f5b20;
+}
+
+.ai-mode strong,
+.ai-mode span {
+  display: block;
+}
+
+.ai-mode p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.ai-input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ai-input-grid label,
+.upload-target {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.79rem;
+  font-weight: 820;
+}
+
+.ai-input-grid label.wide {
+  grid-column: 1 / -1;
+}
+
+.ai-input-grid label.is-muted {
+  opacity: 0.48;
+}
+
+.ai-input-grid label.is-muted input,
+.ai-input-grid label.is-muted select {
+  pointer-events: none;
+}
+
+.ai-input-grid input,
+.ai-input-grid select,
+.ai-input-grid textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.upload-target input {
+  min-height: 42px;
+}
+
+.upload-target span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.ai-actions {
+  margin-top: 14px;
+  justify-content: flex-end;
+}
+
+.ai-draft-empty,
+.ai-draft-card,
+.ai-finding {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 13px;
+  background: #fff;
+}
+
+.ai-draft-empty p,
+.ai-draft-card p,
+.ai-finding p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.ai-draft-card {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-draft-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ai-draft-stats div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--paper);
+}
+
+.ai-draft-stats strong,
+.ai-draft-stats span {
+  display: block;
+}
+
+.ai-draft-stats span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.ai-finding-list {
+  display: grid;
+  gap: 8px;
 }
 
 .form-list-head {
@@ -807,6 +949,7 @@ h2 {
   .dashboard-grid,
   .config-layout,
   .builder-layout,
+  .ai-layout,
   .studio-hero,
   .workflow-board {
     grid-template-columns: 1fr;
@@ -825,6 +968,8 @@ h2 {
 @media (max-width: 720px) {
   .metric-grid,
   .module-grid,
+  .ai-mode-grid,
+  .ai-input-grid,
   .field-builder,
   .nav-group {
     grid-template-columns: 1fr;
